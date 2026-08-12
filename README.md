@@ -24,13 +24,16 @@ claim rules, provenance, evaluation cases, and human review workflow.
 
 ## Try it in two minutes
 
-PaperCI is pre-alpha. Install the current pre-release from PyPI, then create a
-complete synthetic project without an API key or network call:
+PaperCI is pre-alpha. Install the current verified pre-release artifact from GitHub,
+then create a complete synthetic project without an API key or network call. PyPI
+publication is currently blocked by the repository's protected deployment rules;
+the protection gate has not been bypassed.
 
 ```bash
 $ python -m venv .venv
 $ source .venv/bin/activate
-$ python -m pip install --pre paperci
+$ python -m pip install \
+    https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.4.0a1/paperci-0.4.0a1-py3-none-any.whl
 $ paperci demo
 $ cd paperci-demo
 $ paperci lint --fail-on never
