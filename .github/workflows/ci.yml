@@ -26,9 +26,9 @@ jobs:
       - name: Test
         run: pytest
       - name: Code quality
-        run: ruff check src tests
+        run: ruff check src tests scripts
       - name: Compile
-        run: python -m compileall -q src tests
+        run: python -m compileall -q src tests scripts
       - name: Validate example
         run: paperci validate examples/minimal-project.yaml
       - name: Lint intentional overclaim example
@@ -47,16 +47,16 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - name: Install packaging tools
+        run: python -m pip install -e ".[dev]"
       - name: Build wheel and source archive
-        run: |
-          python -m pip install build
-          python -m build
+        run: python -m build
+      - name: Check distribution metadata
+        run: python -m twine check dist/*
       - name: Smoke-test built wheel
-        run: |
-          python -m pip install --force-reinstall dist/*.whl
-          paperci demo wheel-demo
-          paperci doctor wheel-demo
-          paperci compare-hypotheses wheel-demo
+        run: python scripts/smoke_distribution.py dist/*.whl
+      - name: Smoke-test source archive
+        run: python scripts/smoke_distribution.py dist/*.tar.gz
       - uses: actions/upload-artifact@v6
         with:
           name: paperci-distributions

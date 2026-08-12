@@ -1,0 +1,46 @@
+name: Feature request
+description: Propose an improvement without attaching unpublished research data.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the research workflow, not confidential results. Use synthetic examples only.
+  - type: textarea
+    id: need
+    attributes:
+      label: User need
+      description: What research-software task is difficult or unsafe today?
+    validations:
+      required: true
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: Proposed behaviour
+      description: Describe the smallest useful outcome rather than a specific implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Scientific and privacy boundaries
+      description: What must PaperCI avoid inferring, uploading, or presenting as established?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: true
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution interest
+      options:
+        - I can prepare a pull request
+        - I can test a synthetic prototype
+        - I can clarify the use case only
+    validations:
+      required: true

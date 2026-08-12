@@ -12,8 +12,7 @@ PaperCI requires Python 3.11 or newer.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install \
-  https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.3.0a1/paperci-0.3.0a1-py3-none-any.whl
+python -m pip install "paperci==0.3.0a2"
 paperci --version
 paperci demo
 cd paperci-demo

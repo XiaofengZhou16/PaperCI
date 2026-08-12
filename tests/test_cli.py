@@ -6,9 +6,16 @@ from pathlib import Path
 import yaml
 from typer.testing import CliRunner
 
+from paperci import __version__
 from paperci.cli import app
 
 runner = CliRunner()
+
+
+def test_version_option_reports_package_version() -> None:
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0, result.output
+    assert result.output.strip() == f"paperci {__version__}"
 
 
 def test_init_add_validate_lint_and_report(tmp_path: Path) -> None:

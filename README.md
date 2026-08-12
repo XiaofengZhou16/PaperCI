@@ -24,14 +24,13 @@ claim rules, provenance, evaluation cases, and human review workflow.
 
 ## Try it in two minutes
 
-PaperCI is pre-alpha. Install the versioned release artifact directly from GitHub,
-then create a complete synthetic project without an API key or network call:
+PaperCI is pre-alpha. Install the current pre-release from PyPI, then create a
+complete synthetic project without an API key or network call:
 
 ```bash
 $ python -m venv .venv
 $ source .venv/bin/activate
-$ python -m pip install \
-    https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.3.0a1/paperci-0.3.0a1-py3-none-any.whl
+$ python -m pip install --pre paperci
 $ paperci demo
 $ cd paperci-demo
 $ paperci lint --fail-on never
@@ -132,6 +131,7 @@ model is not a prerequisite for receiving value.
 - [Story evaluation](docs/evaluation.md)
 - [Ecosystem and differentiation](docs/ecosystem.md)
 - [MVP and roadmap](docs/roadmap.md)
+- [Release process](docs/releasing.md)
 - [Community and governance](docs/community.md)
 - [Combined JSON Schema](spec/paperci.schema.json)
 - [Minimal example](examples/minimal-project.yaml)
@@ -165,7 +165,7 @@ code-review system. CI may use `--fail-on error`; exploratory work may use
 
 ## Project status
 
-**Pre-alpha / v0.3.0a1.** The offline CLI now separates evidence-bound claims from
+**Pre-alpha / v0.3.0a2.** The offline CLI separates evidence-bound claims from
 frontier hypotheses. Hypothesis novelty remains `unchecked` unless a dated,
 traceable literature assessment is recorded. No output should be used in a
 submission or experimental decision without independent scientific review.
