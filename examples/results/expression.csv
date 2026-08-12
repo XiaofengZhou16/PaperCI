@@ -1,0 +1,2 @@
+group,n,log2_fold_change,ci_lower,ci_upper,p_value
+exposed_vs_control,5,1.1,0.3,1.9,0.02

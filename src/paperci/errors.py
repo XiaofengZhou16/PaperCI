@@ -1,0 +1,14 @@
+class PaperCIError(Exception):
+    """Base error for expected, user-facing PaperCI failures."""
+
+
+class ProjectNotFoundError(PaperCIError):
+    """Raised when a project cannot be resolved."""
+
+
+class ProjectLoadError(PaperCIError):
+    """Raised when a project file cannot be parsed."""
+
+
+class SchemaNotFoundError(PaperCIError):
+    """Raised when the installed schema cannot be located."""

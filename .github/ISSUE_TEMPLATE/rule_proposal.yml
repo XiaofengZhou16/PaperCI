@@ -1,0 +1,43 @@
+name: Scientific rule proposal
+description: Propose a new rule or a change to an existing rule.
+title: "[Rule]: "
+labels: [rule-proposal]
+body:
+  - type: input
+    id: rule
+    attributes:
+      label: Proposed rule ID or domain
+      placeholder: PCI-... or paperci-biomed
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: Scientific failure this rule prevents
+    validations:
+      required: true
+  - type: textarea
+    id: failing_fixture
+    attributes:
+      label: Minimal failing example
+      description: Use synthetic or redistributable content only.
+    validations:
+      required: true
+  - type: textarea
+    id: passing_fixture
+    attributes:
+      label: Nearby passing example
+    validations:
+      required: true
+  - type: textarea
+    id: exceptions
+    attributes:
+      label: Known exceptions and false positives
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Scientific rationale and primary sources
+    validations:
+      required: true

@@ -1,0 +1,42 @@
+name: Bug report
+description: Report incorrect or unexpected PaperCI behavior using synthetic data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include unpublished, identifying, confidential, or proprietary research data.
+  - type: input
+    id: version
+    attributes:
+      label: PaperCI version
+      placeholder: 0.1.0a1
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal synthetic reproduction
+      description: Include commands and the smallest safe project fragment that reproduces the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: macOS 15, Python 3.12
+    validations:
+      required: true

@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paperci"
+version = "0.1.0a1"
+description = "Continuous integration for scientific stories"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [
+  { name = "PaperCI contributors" }
+]
+keywords = [
+  "science",
+  "research",
+  "evidence",
+  "provenance",
+  "scientific-writing",
+  "linting"
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering"
+]
+dependencies = [
+  "jsonschema[format]>=4.21,<5",
+  "PyYAML>=6,<7",
+  "typer>=0.9,<1"
+]
+
+[project.urls]
+Homepage = "https://github.com/XiaofengZhou16/PaperCI"
+Documentation = "https://github.com/XiaofengZhou16/PaperCI#readme"
+Issues = "https://github.com/XiaofengZhou16/PaperCI/issues"
+Source = "https://github.com/XiaofengZhou16/PaperCI"
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2",
+  "pytest>=7.4,<9",
+  "ruff>=0.6"
+]
+
+[project.scripts]
+paperci = "paperci.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/paperci" = ["spec/paperci.schema.json"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
