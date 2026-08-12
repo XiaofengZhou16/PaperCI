@@ -30,13 +30,13 @@ timeline will be agreed with the reporter after scope and mitigation are underst
 
 ## Current security boundary
 
-Milestone 1 commands `validate`, `lint`, `report`, and `doctor` are offline and do
-not import a network client. PaperCI does not execute model-generated code.
+All currently shipped commands are offline and do not import a network client.
+PaperCI does not execute model-generated code.
 
 Local evidence paths are resolved relative to the project file. Remote and logical
 URIs are recorded but not fetched. Hash validation reads only the explicitly named
 local source.
 
-Milestone 2 model integrations must add an outbound-data preview, exact artifact
+Future model integrations must add an outbound-data preview, exact artifact
 allowlist, redaction, provider/run identity, and a hard `--offline` enforcement layer
 before becoming eligible for release.

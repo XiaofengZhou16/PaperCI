@@ -11,8 +11,8 @@ PaperCI helps researchers answer one difficult question:
 > Given the results we actually have, what is the strongest scientific story we can responsibly tell?
 
 It converts experimental results into traceable evidence cards, proposes competing
-paper arcs, tests every claim against its evidence, and identifies the smallest set
-of experiments that would resolve the most important remaining uncertainty.
+paper arcs, tests every claim against its evidence, and makes the most important
+remaining uncertainties explicit for human review.
 
 PaperCI is designed to improve when foundation models improve. Models may propose
 better interpretations and stories; the project owns the stable evidence format,
@@ -25,17 +25,17 @@ $ python -m venv .venv
 $ source .venv/bin/activate
 $ pip install -e .
 
-$ paperci init
-$ paperci add
-  What was compared?      HFD vs control in bone-marrow GMPs
-  What was measured?      Cxcl16 expression
-  What happened?          Higher in HFD
-  How certain is it?      n=5/group; effect and CI in results/cxcl16.csv
-  Where is the source?    results/cxcl16.csv#row=18
-
-$ paperci propose --arcs 3
-$ paperci lint
-$ paperci report
+$ paperci init demo --id demo-study --title "Demo study"
+$ paperci add demo --statement "Target expression was higher after exposure." \
+    --source notes://pilot --locator result-1
+$ paperci claim demo --text "Exposure is associated with higher target expression." \
+    --type association --strength supports --support E001
+$ paperci claim demo --text "Exposure directly activates the target mechanism." \
+    --type mechanism --strength demonstrates --support E001
+$ paperci propose demo --arcs 3
+$ paperci lint demo --fail-on never
+$ paperci compare demo
+$ paperci report demo -o demo/paperci-report.md
 ```
 
 For a non-interactive smoke test from this repository:
@@ -43,7 +43,9 @@ For a non-interactive smoke test from this repository:
 ```bash
 paperci doctor examples/minimal-project.yaml
 paperci validate examples/minimal-project.yaml
+paperci propose examples/minimal-project.yaml --arcs 3 --dry-run
 paperci lint examples/minimal-project.yaml --fail-on never
+paperci compare examples/minimal-project.yaml
 paperci report examples/minimal-project.yaml -o paperci-report.md
 ```
 
@@ -53,12 +55,12 @@ than a broken example.
 
 The report contains:
 
-- three meaningfully different story arcs;
+- distinct candidate arcs when the claim register supports different commitments;
 - the evidence path behind every major claim;
 - unsupported, overstated, or contradictory claims;
-- a proposed Figure 1–6 sequence;
+- a figure-question sequence linked to existing evidence and claims;
 - alternative explanations that remain open;
-- experiments ranked by how much uncertainty they would resolve.
+- explicit gaps, run provenance, and human-review boundaries.
 
 ## Three adoption modes
 
@@ -102,9 +104,10 @@ model is not a prerequisite for receiving value.
 - [Combined JSON Schema](spec/paperci.schema.json)
 - [Minimal example](examples/minimal-project.yaml)
 
-The repository now contains the Milestone 1 Python core and CLI. Model-assisted
-competing-story generation remains a Milestone 2 feature; current validation and
-reporting are deterministic and offline.
+The repository contains the Milestone 1 Python core plus the first Milestone 2
+baseline: deterministic, offline competing-story generation and comparison. Remote
+and local foundation-model adapters remain future work and are not implied by the
+built-in provider.
 
 ## Commands
 
@@ -112,6 +115,9 @@ reporting are deterministic and offline.
 |---|---|---|
 | `paperci init` | Create a readable `paperci.yaml` | Never |
 | `paperci add` | Add a draft evidence card | Never |
+| `paperci claim` | Add an evidence-linked candidate claim | Never |
+| `paperci propose` | Generate bounded candidate arcs with the built-in provider | Never |
+| `paperci compare` | Compare active arcs by gates and coverage signals | Never |
 | `paperci validate` | Check schema, references, sources, hashes, and promotion | Never |
 | `paperci lint` | Apply deterministic scientific-story rules | Never |
 | `paperci report` | Render a Markdown decision report | Never |
@@ -123,9 +129,10 @@ code-review system. CI may use `--fail-on error`; exploratory work may use
 
 ## Project status
 
-**Pre-alpha / v0.1.0a1.** The offline CLI is implemented and tested; field semantics
-and plugin boundaries remain open for RFC discussion. No output should be used in
-a submission without independent scientific review.
+**Pre-alpha / v0.2.0a1.** The offline CLI, bounded proposal baseline, run manifests,
+and deterministic comparison are implemented and tested; provider plugins and field
+semantics remain open for RFC discussion. No output should be used in a submission
+without independent scientific review.
 
 ## License
 

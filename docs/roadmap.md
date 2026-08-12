@@ -29,6 +29,9 @@ Exit criteria:
 
 **Goal:** useful without an API key.
 
+**Status:** implemented in the pre-alpha core; PyPI distribution and design-partner
+timing remain release gates.
+
 Commands:
 
 ```text
@@ -63,23 +66,38 @@ Exit criteria:
 
 **Goal:** use models where they add value while retaining deterministic boundaries.
 
+**Status:** offline baseline implemented in `v0.2.0a1`; model connectivity and
+red-team review remain future work.
+
 Commands:
 
 ```text
 paperci propose --arcs 3
 paperci compare
-paperci redteam
 ```
 
-Deliverables:
+Delivered baseline:
+
+- `paperci claim` entry for evidence-linked candidate claims;
+- offline deterministic provider with evidence-conservative,
+  high-risk-hypothesis, and minimum-gap strategies;
+- exact input manifests, provider/version identity, parameters, outputs, and
+  timestamps for proposal runs;
+- idempotent reuse and deliberate `--force` regeneration with candidate-story
+  superseding;
+- hard-gate/coverage comparison without a single scientific-quality score;
+- `PCI-AI-001` enforcement that generated stories cannot escape their input
+  manifests.
+
+Remaining deliverables:
 
 - one OpenAI-compatible remote adapter;
 - one documented local-model adapter;
 - outbound-data preview and redaction;
 - structured-output repair with a strict retry budget;
 - arc-diversity checks to prevent three paraphrases of one story;
-- model-run manifests and cost display;
-- “conservative,” “high-risk/high-reward,” and “minimum-new-experiment” strategies.
+- model token/cost display;
+- `paperci redteam` with a documented review protocol.
 
 Exit criteria:
 

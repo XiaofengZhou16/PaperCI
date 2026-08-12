@@ -112,4 +112,5 @@ held back as a hosted-service moat.
    reproducibility researchers, and journal-methods editors.
 3. Run a small design-partner pilot before promoting a broad public beta.
 4. Publish failures and rule false-positive analyses alongside success stories.
-5. Tag `v0.1.0` only when the offline CLI and compatibility tests are real.
+5. Tag the first non-pre-alpha release only after distribution, compatibility, and
+   design-partner tests are real.

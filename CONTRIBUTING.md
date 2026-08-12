@@ -12,6 +12,7 @@ PaperCI requires Python 3.11 or newer.
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
+ruff check src tests
 pytest
 paperci doctor examples/minimal-project.yaml
 ```
@@ -67,6 +68,7 @@ Breaking semantics require a major spec version and migration command.
 Run before requesting review:
 
 ```bash
+ruff check src tests
 pytest
 python -m compileall -q src tests
 paperci validate examples/minimal-project.yaml

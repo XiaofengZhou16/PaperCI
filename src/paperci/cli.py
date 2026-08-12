@@ -4,14 +4,14 @@ import platform
 import re
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from jsonschema import Draft202012Validator
 
 from paperci import __version__
+from paperci.comparison import compare_stories, comparison_json, comparison_text
 from paperci.engine import validate_project
-from paperci.errors import PaperCIError
+from paperci.errors import PaperCIError, ProposalError
 from paperci.findings import Finding, Severity, counts
 from paperci.project import (
     ProjectDocument,
@@ -22,6 +22,8 @@ from paperci.project import (
     next_identifier,
     save_project,
 )
+from paperci.proposals import proposal_json, proposal_text, propose_stories
+from paperci.providers import get_provider
 from paperci.render import (
     findings_json,
     findings_sarif,
@@ -46,7 +48,7 @@ def version_callback(value: bool) -> None:
 
 @app.callback()
 def root(
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         callback=version_callback,
@@ -59,9 +61,11 @@ def root(
 
 @app.command("init")
 def init_command(
-    destination: Path = typer.Argument(Path("."), help="Directory in which to create paperci.yaml."),
-    project_id: Optional[str] = typer.Option(None, "--id", help="Stable project identifier."),
-    title: Optional[str] = typer.Option(None, "--title", help="Human-readable project title."),
+    destination: Path = typer.Argument(
+        Path("."), help="Directory in which to create paperci.yaml."
+    ),
+    project_id: str | None = typer.Option(None, "--id", help="Stable project identifier."),
+    title: str | None = typer.Option(None, "--title", help="Human-readable project title."),
     mode: str = typer.Option("sketch", help="Starting mode: sketch, verified, or connected."),
 ) -> None:
     """Create a new local PaperCI project without contacting a network."""
@@ -80,35 +84,37 @@ def init_command(
     document = ProjectDocument(path=path.resolve(), data=empty_project(project_id, title, mode))
     save_project(document)
     typer.echo(f"Created {document.path}")
-    typer.echo("Next: paperci add && paperci lint && paperci report -o paperci-report.md")
+    typer.echo(
+        "Next: paperci add && paperci claim --support E001 && paperci propose && paperci compare"
+    )
 
 
 @app.command("add")
 def add_command(
     project: Path = typer.Argument(Path("."), help="Project file or directory."),
-    statement: Optional[str] = typer.Option(
+    statement: str | None = typer.Option(
         None,
         "--statement",
         "-s",
         help="A bounded statement of what was observed.",
     ),
-    source: Optional[str] = typer.Option(
+    source: str | None = typer.Option(
         None,
         "--source",
         help="Local path, URL, DOI, or notes URI for the source.",
     ),
-    locator: Optional[str] = typer.Option(
+    locator: str | None = typer.Option(
         None,
         "--locator",
         help="Row, table, figure panel, cell, or equivalent locator.",
     ),
     kind: str = typer.Option("quantitative_result", help="Evidence kind."),
-    unit_of_analysis: Optional[str] = typer.Option(
+    unit_of_analysis: str | None = typer.Option(
         None,
         "--unit-of-analysis",
         help="Independent unit, for example mouse or participant.",
     ),
-    group: Optional[list[str]] = typer.Option(
+    group: list[str] | None = typer.Option(
         None,
         "--group",
         help="Group and n as NAME=N; repeat for multiple groups.",
@@ -159,7 +165,189 @@ def add_command(
     evidence.append(record)
     save_project(document)
     typer.echo(f"Added draft evidence {record['id']} to {document.path}")
-    typer.echo("Edit the YAML to add effect, uncertainty, scope, or limitations; then run paperci lint.")
+    typer.echo(
+        "Edit the YAML to add effect, uncertainty, scope, or limitations; then run paperci lint."
+    )
+
+
+@app.command("claim")
+def claim_command(
+    project: Path = typer.Argument(Path("."), help="Project file or directory."),
+    text: str | None = typer.Option(None, "--text", help="The proposition to test."),
+    claim_type: str = typer.Option("association", "--type", help="Scientific claim type."),
+    strength: str = typer.Option("suggests", help="Claim strength."),
+    support: list[str] | None = typer.Option(
+        None,
+        "--support",
+        help="Supporting evidence ID; repeat for multiple records.",
+    ),
+    challenge: list[str] | None = typer.Option(
+        None,
+        "--challenge",
+        help="Challenging evidence ID; repeat for multiple records.",
+    ),
+    assumption: list[str] | None = typer.Option(
+        None,
+        "--assumption",
+        help="Assumption; repeat for multiple entries.",
+    ),
+    alternative: list[str] | None = typer.Option(
+        None,
+        "--alternative",
+        help="Competing explanation; repeat for multiple entries.",
+    ),
+    scope: list[str] | None = typer.Option(
+        None,
+        "--scope",
+        help="Scope as FIELD=VALUE; repeat for multiple fields.",
+    ),
+) -> None:
+    """Append one candidate claim linked only to existing evidence."""
+    claim_types = {
+        "descriptive",
+        "difference",
+        "association",
+        "temporal",
+        "predictive",
+        "causal_effect",
+        "mediation",
+        "mechanism",
+        "generalization",
+        "null",
+        "resource",
+    }
+    strengths = {"observes", "suggests", "supports", "demonstrates", "establishes"}
+    if claim_type not in claim_types:
+        _fail(f"Unknown claim type {claim_type!r}. Choose one of: {', '.join(sorted(claim_types))}")
+    if strength not in strengths:
+        _fail(f"Unknown strength {strength!r}. Choose one of: {', '.join(sorted(strengths))}")
+    document = _load_or_fail(project)
+    text = (text or typer.prompt("What proposition should the evidence support?")).strip()
+    if not text:
+        _fail("Claim text must not be empty.")
+    evidence_records = document.data.get("evidence", [])
+    if not isinstance(evidence_records, list):
+        _fail("Project field 'evidence' is not a list; run paperci validate.")
+    evidence_ids = {
+        str(item.get("id"))
+        for item in evidence_records
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    supports = _unique_strings(support or [])
+    challenges = _unique_strings(challenge or [])
+    unknown = sorted((set(supports) | set(challenges)) - evidence_ids)
+    if unknown:
+        _fail(f"Unknown evidence ID(s): {', '.join(unknown)}")
+    claims = document.data.setdefault("claims", [])
+    if not isinstance(claims, list):
+        _fail("Project field 'claims' is not a list; run paperci validate.")
+    if any(
+        isinstance(item, dict)
+        and str(item.get("text", "")).strip() == text
+        and item.get("status") != "superseded"
+        for item in claims
+    ):
+        _fail("An active claim with identical text already exists.")
+    parsed_scope = _parse_scope(scope or [])
+    record: dict[str, object] = {
+        "id": next_identifier(claims, "C"),
+        "text": text,
+        "type": claim_type,
+        "strength": strength,
+        "status": "candidate",
+        "supports": supports,
+        "challenges": challenges,
+        "assumptions": _unique_strings(assumption or []),
+        "alternatives": _unique_strings(alternative or []),
+    }
+    if parsed_scope:
+        record["scope"] = parsed_scope
+    claims.append(record)
+    save_project(document)
+    typer.echo(f"Added candidate claim {record['id']} to {document.path}")
+    if not supports:
+        typer.echo(
+            "Note: this claim has no supporting evidence and will not be proposed into a story."
+        )
+
+
+@app.command("propose")
+def propose_command(
+    project: Path = typer.Argument(Path("."), help="Project file or directory."),
+    arcs: int = typer.Option(3, "--arcs", min=1, max=3, help="Number of competing arcs."),
+    provider_id: str = typer.Option(
+        "builtin",
+        "--provider",
+        help="Provider ID; v0.2 includes the offline deterministic provider.",
+    ),
+    central_claim: str | None = typer.Option(
+        None,
+        "--central-claim",
+        help="Force an eligible claim to anchor the conservative arc.",
+    ),
+    force: bool = typer.Option(False, "--force", help="Create a new run even if inputs match."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without changing the project."),
+    output_format: str = typer.Option("text", "--format", help="Output format: text or json."),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write output to a file."),
+) -> None:
+    """Generate bounded competing story candidates; the built-in provider is offline."""
+    document = _load_or_fail(project)
+    try:
+        provider = get_provider(provider_id)
+        outcome = propose_stories(
+            document,
+            provider,
+            arcs=arcs,
+            central_claim=central_claim,
+            force=force,
+        )
+    except (ProposalError, ValueError) as exc:
+        _fail(str(exc))
+    if not dry_run and not outcome.reused:
+        save_project(outcome.document)
+    if output_format == "text":
+        rendered = proposal_text(outcome)
+    elif output_format == "json":
+        rendered = proposal_json(outcome, dry_run=dry_run)
+    else:
+        _fail("--format must be text or json.")
+    if dry_run and output_format == "text":
+        rendered += "\n\nDry run: project file was not changed."
+    if output:
+        path = write_or_return(rendered, output)
+        typer.echo(f"Wrote {path}")
+    else:
+        typer.echo(rendered)
+
+
+@app.command("compare")
+def compare_command(
+    project: Path = typer.Argument(Path("."), help="Project file or directory."),
+    output_format: str = typer.Option("text", "--format", help="Output format: text or json."),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write output to a file."),
+) -> None:
+    """Compare active arcs by hard gates and transparent coverage signals."""
+    document = _load_or_fail(project)
+    structural_errors = [
+        finding
+        for finding in validate_project(document, scientific=False)
+        if finding.severity == Severity.ERROR
+    ]
+    if structural_errors:
+        rules = ", ".join(sorted({finding.rule_id for finding in structural_errors}))
+        _fail(f"Project has structural errors ({rules}); run paperci validate first.")
+    result = compare_stories(document)
+    if output_format == "text":
+        rendered = comparison_text(result)
+    elif output_format == "json":
+        rendered = comparison_json(result)
+    else:
+        _fail("--format must be text or json.")
+    if output:
+        path = write_or_return(rendered, output)
+        typer.echo(f"Wrote {path}")
+    else:
+        typer.echo(rendered)
 
 
 @app.command("validate")
@@ -183,7 +371,7 @@ def lint_command(
         "--format",
         help="Output format: text, json, or sarif.",
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
@@ -212,7 +400,7 @@ def lint_command(
 @app.command("report")
 def report_command(
     project: Path = typer.Argument(Path("."), help="Project file or directory."),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
@@ -232,7 +420,7 @@ def report_command(
 
 @app.command("doctor")
 def doctor_command(
-    project: Optional[Path] = typer.Argument(None, help="Optional project file or directory."),
+    project: Path | None = typer.Argument(None, help="Optional project file or directory."),
 ) -> None:
     """Check the installation and, optionally, the current project."""
     checks: list[tuple[str, bool, str]] = []
@@ -243,7 +431,13 @@ def doctor_command(
         checks.append(("Schema", True, str(schema_path)))
     except Exception as exc:  # doctor must report all checks
         checks.append(("Schema", False, str(exc)))
-    checks.append(("Offline core", True, "validate/lint/report import no network client"))
+    checks.append(
+        (
+            "Offline core",
+            True,
+            "all built-in commands import no network client",
+        )
+    )
     if project is not None:
         try:
             document = load_project(project)
@@ -284,7 +478,7 @@ def _threshold(value: str) -> Severity | None:
         return mapping[value.lower()]
     except KeyError:
         _fail("--fail-on must be error, warning, note, or never.")
-        raise AssertionError("unreachable")
+        raise AssertionError("unreachable") from None
 
 
 def _load_or_fail(project: Path) -> ProjectDocument:
@@ -292,7 +486,7 @@ def _load_or_fail(project: Path) -> ProjectDocument:
         return load_project(project)
     except PaperCIError as exc:
         _fail(str(exc))
-        raise AssertionError("unreachable")
+        raise AssertionError("unreachable") from None
 
 
 def _parse_groups(values: list[str]) -> list[dict[str, object]]:
@@ -309,6 +503,27 @@ def _parse_groups(values: list[str]) -> list[dict[str, object]]:
             _fail(f"Invalid --group {value!r}; name must be nonempty and N nonnegative.")
         result.append({"id": _slug(name), "n": n})
     return result
+
+
+def _parse_scope(values: list[str]) -> dict[str, str]:
+    allowed = {"species", "population", "system", "context", "time"}
+    result: dict[str, str] = {}
+    for value in values:
+        if "=" not in value:
+            _fail(f"Invalid --scope {value!r}; expected FIELD=VALUE.")
+        field, text = value.split("=", 1)
+        field = field.strip()
+        text = text.strip()
+        if field not in allowed:
+            _fail(f"Unknown scope field {field!r}. Choose one of: {', '.join(sorted(allowed))}")
+        if not text:
+            _fail(f"Scope value for {field!r} must not be empty.")
+        result[field] = text
+    return result
+
+
+def _unique_strings(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(value.strip() for value in values if value.strip()))
 
 
 def _slug(value: str) -> str:

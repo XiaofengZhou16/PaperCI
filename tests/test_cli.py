@@ -42,6 +42,7 @@ def test_init_add_validate_lint_and_report(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     project = yaml.safe_load(project_file.read_text(encoding="utf-8"))
+    assert project["spec_version"] == "0.2"
     assert project["evidence"][0]["id"] == "E001"
     assert project["evidence"][0]["status"] == "draft"
 
@@ -58,6 +59,47 @@ def test_init_add_validate_lint_and_report(tmp_path: Path) -> None:
     result = runner.invoke(app, ["report", str(project_dir), "-o", str(report_path)])
     assert result.exit_code == 0, result.output
     assert "PaperCI report: Demo study" in report_path.read_text(encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "claim",
+            str(project_dir),
+            "--text",
+            "Exposure is associated with a higher outcome in the tested samples.",
+            "--support",
+            "E001",
+            "--scope",
+            "system=tested samples",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "Added candidate claim C001" in result.output
+
+    result = runner.invoke(
+        app,
+        ["propose", str(project_dir), "--arcs", "1", "--format", "json"],
+    )
+    assert result.exit_code == 0, result.output
+    proposal = json.loads(result.output)
+    assert proposal["reused"] is False
+    assert proposal["run"]["input_manifest"]["evidence_ids"] == ["E001"]
+    assert proposal["stories"][0]["status"] == "candidate"
+
+    unchanged = project_file.read_text(encoding="utf-8")
+    result = runner.invoke(
+        app,
+        ["propose", str(project_dir), "--arcs", "1", "--format", "json"],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["reused"] is True
+    assert project_file.read_text(encoding="utf-8") == unchanged
+
+    result = runner.invoke(app, ["compare", str(project_dir), "--format", "json"])
+    assert result.exit_code == 0, result.output
+    comparison = json.loads(result.output)
+    assert comparison["recommended_for_review"] == "S001"
+    assert "scientific_quality_score" not in comparison
 
 
 def test_init_refuses_to_overwrite(tmp_path: Path) -> None:
@@ -84,3 +126,42 @@ def test_doctor_is_offline_and_accepts_project() -> None:
     result = runner.invoke(app, ["doctor", str(example)])
     assert result.exit_code == 0, result.output
     assert "PASS  Offline core" in result.output
+
+
+def test_claim_rejects_unknown_evidence(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["init", str(tmp_path), "--id", "unknown-evidence"])
+    assert result.exit_code == 0
+    result = runner.invoke(
+        app,
+        ["claim", str(tmp_path), "--text", "A candidate claim.", "--support", "E999"],
+    )
+    assert result.exit_code == 2
+    assert "Unknown evidence ID(s): E999" in result.output
+
+
+def test_propose_dry_run_does_not_write(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["init", str(tmp_path), "--id", "dry-run"])
+    assert result.exit_code == 0
+    result = runner.invoke(
+        app,
+        ["add", str(tmp_path), "--statement", "An observation.", "--source", "notes://one"],
+    )
+    assert result.exit_code == 0
+    result = runner.invoke(
+        app,
+        ["claim", str(tmp_path), "--text", "A bounded observation.", "--support", "E001"],
+    )
+    assert result.exit_code == 0
+    project_file = tmp_path / "paperci.yaml"
+    before = project_file.read_text(encoding="utf-8")
+    result = runner.invoke(app, ["propose", str(tmp_path), "--arcs", "1", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert "Dry run" in result.output
+    assert project_file.read_text(encoding="utf-8") == before
+    result = runner.invoke(
+        app,
+        ["propose", str(tmp_path), "--arcs", "1", "--dry-run", "--format", "json"],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["dry_run"] is True
+    assert project_file.read_text(encoding="utf-8") == before

@@ -30,14 +30,15 @@ of scientific quality.
 
 ## Arc diversity contract
 
-`paperci propose --arcs 3` must return different scientific commitments, not three
-title rewrites. The default strategies are:
+When enough distinct eligible claims exist, `paperci propose --arcs 3` must return
+different scientific commitments, not three title rewrites. The default strategies
+are:
 
-1. **Evidence-conservative:** strongest arc that passes current hard gates.
-2. **High-risk/high-reward:** most consequential coherent hypothesis, with blocked
-   claims and decisive tests visible.
-3. **Minimum-new-experiment:** arc optimized for the smallest feasible evidence gap
-   closure.
+1. **Evidence-conservative:** prefer the strongest arc that passes current hard
+   gates; if none passes, expose the least-burden supported option as failing.
+2. **High-risk/high-reward:** most consequential supported hypothesis, with blocked
+   claims and current gates visible.
+3. **Minimum-gap:** alternative claim path with the smallest current gate/gap burden.
 
 Two arcs are insufficiently distinct when they share the same central claim, claim
 path, principal alternative, and central gap. A deterministic diversity check can

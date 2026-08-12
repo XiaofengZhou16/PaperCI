@@ -13,13 +13,17 @@ The specification must be:
 
 ## ProjectSpec
 
-A project contains metadata, evidence, claims, stories, review events, and optional
-extensions. The top-level `spec_version` selects the interpretation of all fields.
-Project `mode` describes the expected workflow; it is not a shortcut that promotes
-every record in the project.
+A project contains metadata, evidence, claims, stories, review events, optional
+proposal-run manifests, and optional extensions. The top-level `spec_version`
+selects the interpretation of all fields. Project `mode` describes the expected
+workflow; it is not a shortcut that promotes every record in the project.
+
+The current authoring version is `0.2`. The v0.2 validator also reads `0.1`
+projects; running `paperci propose` upgrades its output document to `0.2` because
+proposal-run manifests were added in that version.
 
 ```yaml
-spec_version: "0.1"
+spec_version: "0.2"
 project:
   id: gout-cvd-story
   title: Trained myelopoiesis and plaque inflammation
@@ -28,10 +32,11 @@ evidence: []
 claims: []
 stories: []
 reviews: []
+runs: []
 ```
 
 IDs are stable within a project and use prefixes by convention: `E`, `C`, `S`,
-`G`, and `R`. They are not regenerated when text or ordering changes.
+`G`, `R`, and `RUN`. They are not regenerated when text or ordering changes.
 
 ## EvidenceSpec
 
@@ -231,6 +236,42 @@ gaps:
 `expected_information_gain` is an ordinal expert/model judgment until a domain
 plugin supplies a formal calculation. It must not be rendered as a calibrated
 probability.
+
+## RunManifest
+
+Every built-in proposal run records what the provider was allowed to see and which
+stories it produced:
+
+```yaml
+- id: RUN001
+  kind: story_proposal
+  provider:
+    id: paperci.builtin.deterministic
+    version: "1"
+    kind: software
+  input_hash: ea0dda9051851f3e7c66b1a854d8f4d979d6bfa7a0e7f0ba21efc1e6bddff40a
+  input_manifest:
+    evidence_ids: [E001, E002]
+    claim_ids: [C001, C002]
+  parameters:
+    arcs: 3
+    strategies: [evidence-conservative, high-risk-hypothesis, minimum-gap]
+    central_claim: null
+  output_ids: [S002, S003, S004]
+  status: completed
+  created_at: 2026-08-12T12:10:00+08:00
+```
+
+The current input hash covers the spec version, project identity, evidence, claims,
+provider identity/version, and proposal parameters. Identical inputs reuse the
+completed run unless `--force` is supplied. A changed input creates a new run and
+supersedes prior candidate stories produced by the same provider; manual, selected,
+or rejected stories are not silently rewritten.
+
+Generated stories carry a namespaced extension pointing to their run, provider,
+version, and strategy. `PCI-AI-001` fails if they cite a claim or evidence ID outside
+the recorded input manifest. Run provenance does not verify scientific correctness,
+and generated stories always begin as `candidate`.
 
 ## ReviewEvent
 

@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "paperci"
-version = "0.1.0a1"
+version = "0.2.0a1"
 description = "Continuous integration for scientific stories"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 authors = [
   { name = "PaperCI contributors" }
 ]
@@ -24,7 +24,6 @@ classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Environment :: Console",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
@@ -72,3 +71,7 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+ignore = [
+  "B008", # Typer declares CLI metadata through function-call defaults.
+  "E501", # The formatter may retain long URLs and user-facing strings.
+]

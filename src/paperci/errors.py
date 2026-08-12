@@ -12,3 +12,7 @@ class ProjectLoadError(PaperCIError):
 
 class SchemaNotFoundError(PaperCIError):
     """Raised when the installed schema cannot be located."""
+
+
+class ProposalError(PaperCIError):
+    """Raised when story proposals cannot be generated safely."""

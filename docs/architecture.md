@@ -28,28 +28,24 @@ files / notes / pipelines
 
 ## Core packages
 
-The recommended v0.1 implementation is Python 3.11+.
+The v0.2 implementation is Python 3.11+ and keeps the initial core deliberately
+small:
 
 ```text
 src/paperci/
-  spec/          typed models, JSON Schema export, migrations
-  store/         canonical project loading and content hashing
-  graph/         evidence/claim/story links and traversal
-  rules/         deterministic validation engine
-  providers/     optional model protocol and local mock provider
-  workflows/     propose, lint, compare, report
-  render/        Markdown and machine-readable reports
-  cli/           init, add, propose, lint, report, doctor
+  project.py      canonical YAML/JSON loading and identifiers
+  engine.py       schema, provenance, reference, and scientific rules
+  providers.py    provider protocol and offline deterministic baseline
+  proposals.py    input hashing, idempotency, superseding, and run manifests
+  comparison.py   hard-gate and transparent coverage comparison
+  render.py       Markdown, JSON, text, and SARIF output
+  cli.py          init, add, claim, propose, compare, lint, report, doctor
 ```
 
-Recommended dependencies:
-
-- Pydantic v2 for typed validation and schema generation;
-- Typer for the CLI;
-- `jsonschema` for conformance tests;
-- NetworkX initially for in-memory traversal;
-- Jinja2 for reports;
-- optional LiteLLM-compatible adapters, not a core dependency.
+Current runtime dependencies are intentionally limited to Typer for the CLI,
+`jsonschema` for conformance, and PyYAML for readable project files. Typed-model,
+graph, template, and model-adapter libraries should be added only when an
+implemented workflow needs them; remote-provider packages must remain optional.
 
 Canonical project data remains YAML/JSON in the repository. SQLite or DuckDB may
 be added as a disposable index, never as the only source of truth.
@@ -76,7 +72,7 @@ The combined JSON Schema is in `spec/paperci.schema.json`. Public releases shoul
 publish immutable schema URIs such as:
 
 ```text
-https://paperci.org/spec/v0.1/project.schema.json
+https://paperci.org/spec/v0.2/project.schema.json
 ```
 
 ## Validation pipeline
@@ -122,9 +118,11 @@ Rules produce findings; they do not silently rewrite claims.
 
 ### 4. Model review
 
-Only after hard gates run do models compare arcs, propose alternatives, and rank
-gaps. Model findings are namespaced, reproducible records and never override hard
-gate failures.
+Only after structural gates run may a provider propose arcs. Scientific hard gates
+are computed for the provider context and rerun on its output. The v0.2 built-in
+provider is deterministic and offline: it reorganizes only existing claims and
+evidence IDs. Future model findings must remain namespaced, reproducible records and
+must never override hard-gate failures.
 
 ## Model provider protocol
 
@@ -133,12 +131,13 @@ The core invokes a small capability-based interface:
 ```python
 class StoryProvider(Protocol):
     provider_id: str
+    provider_version: str
+    provider_kind: str
 
-    def capabilities(self) -> set[str]: ...
-    def generate_structured(self, task: TaskBundle) -> ProviderResult: ...
+    def propose(self, context: ProposalContext) -> ProviderResult: ...
 ```
 
-Capabilities may include:
+Future provider capabilities may include:
 
 - `text_reasoning`;
 - `vision_figure_reading`;
@@ -146,18 +145,20 @@ Capabilities may include:
 - `tool_calling`;
 - `local_inference`.
 
-Every run records provider, model identifier, adapter version, parameters, prompt
-bundle hash, input manifest hash, token/cost information when available, output
-hash, and timestamp. Secrets and raw prompts are not stored by default.
+Every current run records provider identity and version, parameters, a canonical
+input hash, the exact allowed evidence and claim IDs, output story IDs, status, and
+timestamp. Future model adapters must additionally define prompt-bundle identity,
+token/cost reporting when available, and output hashing without storing secrets or
+raw prompts by default.
 
-Provider adapters must support an outbound-data preview. Before a remote call, the
-CLI shows which fields and artifacts will leave the machine. `--offline` is a hard
-guarantee enforced below the workflow layer.
+Future remote-provider adapters must support an outbound-data preview. Before a
+remote call, the CLI must show which fields and artifacts will leave the machine.
+`--offline` will be a hard guarantee enforced below the workflow layer.
 
 ## Plugin contracts
 
-Plugins are discovered through Python entry points and declare compatibility with
-a PaperCI spec version.
+Planned plugins will be discovered through Python entry points and declare
+compatibility with a PaperCI spec version.
 
 ### ImporterPlugin
 
@@ -223,7 +224,7 @@ code review. A CI run should be able to fail on configured severities:
 
 ```yaml
 - name: Lint scientific claims
-  run: paperci lint --fail-on error --offline
+  run: paperci lint --fail-on error
 ```
 
 Model-based story generation is not required in ordinary CI because it can be
@@ -232,14 +233,14 @@ and snapshot run when they explicitly want model comparison.
 
 ## Security and privacy
 
-- local and offline by default for `lint`, `report`, and `doctor`;
-- no arbitrary execution of model-generated code in v0.1;
+- all currently shipped commands are local and offline;
+- no arbitrary execution of model-generated code before 1.0;
 - no recursive upload of a project directory;
 - allowlist exact artifacts included in each model task;
 - redact local absolute paths from remote payloads;
 - content hashes instead of content where possible;
 - configurable sensitive fields and institution policy hooks;
-- no telemetry in v0.1; later telemetry must be opt-in and documented;
+- no telemetry before 1.0; later telemetry must be opt-in and documented;
 - prompt injection text from documents is treated as data, never as instructions.
 
 ## Compatibility policy

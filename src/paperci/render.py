@@ -17,15 +17,13 @@ def findings_text(findings: list[Finding]) -> str:
     for finding in findings:
         path = f" ({finding.path})" if finding.path else ""
         lines.append(
-            f"{finding.severity.label().upper():7} {finding.rule_id} "
-            f"[{finding.target}]{path} {finding.message}"
+            f"{finding.severity.label().upper():7} {finding.rule_id} [{finding.target}]{path} {finding.message}"
         )
         lines.append(f"        Fix: {finding.remediation}")
     summary = counts(findings)
     lines.append("")
     lines.append(
-        f"Summary: {summary['error']} error(s), {summary['warning']} warning(s), "
-        f"{summary['note']} note(s)."
+        f"Summary: {summary['error']} error(s), {summary['warning']} warning(s), {summary['note']} note(s)."
     )
     return "\n".join(lines)
 
@@ -100,6 +98,7 @@ def markdown_report(document: ProjectDocument, findings: list[Finding]) -> str:
     evidence = _dicts(data.get("evidence"))
     claims = _dicts(data.get("claims"))
     stories = _dicts(data.get("stories"))
+    runs = _dicts(data.get("runs"))
     lines = [
         f"# PaperCI report: {document.title}",
         "",
@@ -107,8 +106,7 @@ def markdown_report(document: ProjectDocument, findings: list[Finding]) -> str:
         f"- Mode: `{document.mode}`",
         f"- Source: `{document.path.name}`",
         f"- PaperCI: `{__version__}`",
-        f"- Findings: **{summary['error']} errors**, {summary['warning']} warnings, "
-        f"{summary['note']} notes",
+        f"- Findings: **{summary['error']} errors**, {summary['warning']} warnings, {summary['note']} notes",
         "",
         "## Gate status",
         "",
@@ -145,7 +143,9 @@ def markdown_report(document: ProjectDocument, findings: list[Finding]) -> str:
         lines.append("No evidence cards yet. Run `paperci add`.")
     lines.extend(["", "## Claim register", ""])
     if claims:
-        lines.extend(["| ID | Decision | Type | Claim | Support | Findings |", "|---|---|---|---|---|---|"])
+        lines.extend(
+            ["| ID | Decision | Type | Claim | Support | Findings |", "|---|---|---|---|---|---|"]
+        )
         for item in claims:
             item_id = str(item.get("id", "?"))
             support = ", ".join(f"`{value}`" for value in item.get("supports", [])) or "—"
@@ -157,14 +157,16 @@ def markdown_report(document: ProjectDocument, findings: list[Finding]) -> str:
         lines.append("No claims yet.")
     lines.extend(["", "## Story arcs", ""])
     if not stories:
-        lines.append("No story arcs yet. Model-assisted proposal is planned for Milestone 2.")
+        lines.append("No story arcs yet. Add supported claims, then run `paperci propose`.")
     for story in stories:
         story_id = str(story.get("id", "?"))
+        extension = _proposal_extension(story)
         lines.extend(
             [
                 f"### {story.get('title', story_id)} (`{story_id}`)",
                 "",
                 f"- Status: `{story.get('status', '?')}`",
+                f"- Strategy: `{extension.get('strategy', 'manual')}`",
                 f"- Central question: {story.get('central_question', '—')}",
                 f"- Central claim: `{story.get('central_claim', '?')}`",
                 "- Claim path: "
@@ -186,13 +188,33 @@ def markdown_report(document: ProjectDocument, findings: list[Finding]) -> str:
             lines.append("")
         gaps = _dicts(story.get("gaps"))
         if gaps:
-            lines.append("**Central gaps**")
+            lines.append("**Recorded gaps**")
             lines.append("")
             for gap in gaps:
                 lines.append(
                     f"- `{gap.get('id', '?')}` ({gap.get('severity', '?')}): {gap.get('question', '—')}"
                 )
             lines.append("")
+    lines.extend(["## Proposal runs", ""])
+    if runs:
+        lines.extend(
+            [
+                "| Run | Provider | Input hash | Outputs | Status |",
+                "|---|---|---|---|---|",
+            ]
+        )
+        for run in runs:
+            provider = run.get("provider") if isinstance(run.get("provider"), dict) else {}
+            provider_label = f"{provider.get('id', '?')}@{provider.get('version', '?')}"
+            output_ids = ", ".join(f"`{value}`" for value in run.get("output_ids", [])) or "—"
+            input_hash = str(run.get("input_hash", "?"))
+            lines.append(
+                f"| `{run.get('id', '?')}` | {_cell(provider_label)} | `{input_hash[:12]}…` | "
+                f"{output_ids} | {run.get('status', '?')} |"
+            )
+    else:
+        lines.append("No proposal runs recorded.")
+    lines.append("")
     lines.extend(
         [
             "## Interpretation boundary",
@@ -223,3 +245,11 @@ def _cell(value: Any) -> str:
 
 def _finding_ids(findings: list[Finding]) -> str:
     return ", ".join(f"`{finding.rule_id}`" for finding in findings) or "—"
+
+
+def _proposal_extension(story: dict[str, Any]) -> dict[str, Any]:
+    extensions = story.get("extensions")
+    if not isinstance(extensions, dict):
+        return {}
+    value = extensions.get("org.paperci.proposal.v1")
+    return value if isinstance(value, dict) else {}

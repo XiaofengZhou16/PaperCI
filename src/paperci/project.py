@@ -36,7 +36,9 @@ class ProjectDocument:
     @property
     def title(self) -> str:
         project = self.data.get("project", {})
-        return project.get("title", self.project_id) if isinstance(project, dict) else self.project_id
+        return (
+            project.get("title", self.project_id) if isinstance(project, dict) else self.project_id
+        )
 
 
 def resolve_project_path(value: str | Path = ".") -> Path:
@@ -49,7 +51,9 @@ def resolve_project_path(value: str | Path = ".") -> Path:
             if project_file.is_file():
                 return project_file.resolve()
         expected = ", ".join(PROJECT_FILENAMES)
-        raise ProjectNotFoundError(f"No PaperCI project in {candidate.resolve()} (expected {expected}).")
+        raise ProjectNotFoundError(
+            f"No PaperCI project in {candidate.resolve()} (expected {expected})."
+        )
     raise ProjectNotFoundError(f"Project path does not exist: {candidate}")
 
 
@@ -103,7 +107,7 @@ def load_schema() -> dict[str, Any]:
 
 def empty_project(project_id: str, title: str, mode: str = "sketch") -> dict[str, Any]:
     return {
-        "spec_version": "0.1",
+        "spec_version": "0.2",
         "project": {
             "id": project_id,
             "title": title,
@@ -114,6 +118,7 @@ def empty_project(project_id: str, title: str, mode: str = "sketch") -> dict[str
         "claims": [],
         "stories": [],
         "reviews": [],
+        "runs": [],
     }
 
 

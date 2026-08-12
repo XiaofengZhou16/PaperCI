@@ -56,14 +56,14 @@ def _schema_findings(document: ProjectDocument) -> list[Finding]:
                 target=path or "/",
                 path=path or "/",
                 message=error.message,
-                remediation="Edit the field to conform to spec version 0.1.",
+                remediation="Edit the field to conform to a supported PaperCI spec version.",
             )
         )
     return results
 
 
 def _records(document: ProjectDocument) -> Iterable[tuple[str, int, dict[str, Any]]]:
-    for collection in ("evidence", "claims", "stories", "reviews"):
+    for collection in ("evidence", "claims", "stories", "reviews", "runs"):
         values = document.data.get(collection, [])
         if not isinstance(values, list):
             continue
@@ -116,7 +116,9 @@ def _reference_findings(
         if resolved is None:
             message = f"Reference {reference!r} does not exist."
         elif resolved[0] not in expected:
-            message = f"Reference {reference!r} resolves to {resolved[0]}, expected {sorted(expected)}."
+            message = (
+                f"Reference {reference!r} resolves to {resolved[0]}, expected {sorted(expected)}."
+            )
         else:
             return
         findings.append(
@@ -140,7 +142,9 @@ def _reference_findings(
                 references = claim.get(field, [])
                 if isinstance(references, list):
                     for position, reference in enumerate(references):
-                        require(owner, reference, {"evidence"}, f"/claims/{offset}/{field}/{position}")
+                        require(
+                            owner, reference, {"evidence"}, f"/claims/{offset}/{field}/{position}"
+                        )
 
     stories = document.data.get("stories", [])
     if isinstance(stories, list):
@@ -148,7 +152,9 @@ def _reference_findings(
             if not isinstance(story, dict):
                 continue
             owner = str(story.get("id", f"stories[{offset}]"))
-            require(owner, story.get("central_claim"), {"claims"}, f"/stories/{offset}/central_claim")
+            require(
+                owner, story.get("central_claim"), {"claims"}, f"/stories/{offset}/central_claim"
+            )
             for position, reference in enumerate(_list(story.get("claim_path"))):
                 require(owner, reference, {"claims"}, f"/stories/{offset}/claim_path/{position}")
             for beat_index, beat in enumerate(_dicts(story.get("beats"))):
@@ -195,6 +201,54 @@ def _reference_findings(
                 {"evidence", "claims", "stories"},
                 f"/reviews/{offset}/target",
             )
+
+    runs = document.data.get("runs", [])
+    if isinstance(runs, list):
+        for offset, run in enumerate(runs):
+            if not isinstance(run, dict):
+                continue
+            owner = str(run.get("id", f"runs[{offset}]"))
+            manifest = run.get("input_manifest")
+            if isinstance(manifest, dict):
+                for position, reference in enumerate(_list(manifest.get("evidence_ids"))):
+                    require(
+                        owner,
+                        reference,
+                        {"evidence"},
+                        f"/runs/{offset}/input_manifest/evidence_ids/{position}",
+                    )
+                for position, reference in enumerate(_list(manifest.get("claim_ids"))):
+                    require(
+                        owner,
+                        reference,
+                        {"claims"},
+                        f"/runs/{offset}/input_manifest/claim_ids/{position}",
+                    )
+            for position, reference in enumerate(_list(run.get("output_ids"))):
+                require(owner, reference, {"stories"}, f"/runs/{offset}/output_ids/{position}")
+
+    if isinstance(stories, list):
+        for offset, story in enumerate(stories):
+            if not isinstance(story, dict):
+                continue
+            extension = _proposal_extension(story)
+            if extension.get("generated") is True:
+                owner = str(story.get("id", f"stories[{offset}]"))
+                run_id = extension.get("run_id")
+                path = f"/stories/{offset}/extensions/org.paperci.proposal.v1/run_id"
+                if isinstance(run_id, str):
+                    require(owner, run_id, {"runs"}, path)
+                else:
+                    findings.append(
+                        Finding(
+                            rule_id="PCI-REF-001",
+                            severity=Severity.ERROR,
+                            target=owner,
+                            path=path,
+                            message="Generated story has no valid proposal-run reference.",
+                            remediation="Restore its string run_id or regenerate the story.",
+                        )
+                    )
     return findings
 
 
@@ -306,6 +360,16 @@ def _scientific_findings(
         for record_id, (collection, record) in index.items()
         if collection == "claims"
     }
+    story_index = {
+        record_id: record
+        for record_id, (collection, record) in index.items()
+        if collection == "stories"
+    }
+    run_index = {
+        record_id: record
+        for record_id, (collection, record) in index.items()
+        if collection == "runs"
+    }
     evidence = document.data.get("evidence", [])
     if isinstance(evidence, list):
         for offset, item in enumerate(evidence):
@@ -314,7 +378,11 @@ def _scientific_findings(
             target = str(item.get("id", f"evidence[{offset}]"))
             design = item.get("design") if isinstance(item.get("design"), dict) else {}
             groups = _dicts(design.get("groups"))
-            if not design.get("unit_of_analysis") or not groups or any("n" not in g for g in groups):
+            if (
+                not design.get("unit_of_analysis")
+                or not groups
+                or any("n" not in g for g in groups)
+            ):
                 findings.append(
                     Finding(
                         rule_id="PCI-STAT-001",
@@ -331,6 +399,8 @@ def _scientific_findings(
             if not isinstance(claim, dict):
                 continue
             target = str(claim.get("id", f"claims[{offset}]"))
+            if claim.get("status") in {"prohibited", "superseded"}:
+                continue
             supports = [
                 evidence_index[record_id]
                 for record_id in _list(claim.get("supports"))
@@ -403,30 +473,50 @@ def _scientific_findings(
             if not isinstance(story, dict):
                 continue
             target = str(story.get("id", f"stories[{offset}]"))
-            central = claim_index.get(story.get("central_claim"))
-            if central is not None and (
-                not _list(central.get("supports"))
-                or central.get("status") in {"prohibited", "superseded"}
-            ):
+            active = story.get("status") not in {"rejected", "superseded"}
+            story_claim_ids = list(
+                dict.fromkeys([story.get("central_claim"), *_list(story.get("claim_path"))])
+            )
+            invalid_claims = [
+                str(claim_id)
+                for claim_id in story_claim_ids
+                if claim_id in claim_index
+                and (
+                    not _list(claim_index[claim_id].get("supports"))
+                    or claim_index[claim_id].get("status") in {"prohibited", "superseded"}
+                )
+            ]
+            if active and invalid_claims:
                 findings.append(
                     Finding(
                         rule_id="PCI-STORY-001",
                         severity=Severity.ERROR,
                         target=target,
-                        message="Story central claim is unsupported, prohibited, or superseded.",
-                        remediation="Select a supportable central claim or keep the story explicitly hypothetical.",
+                        message=(
+                            "Active story uses unsupported, prohibited, or superseded claims: "
+                            + ", ".join(invalid_claims)
+                            + "."
+                        ),
+                        remediation=(
+                            "Remove those claims from the active path, restore valid support, or reject "
+                            "the story."
+                        ),
                     )
                 )
-            path_claims = [
-                claim_index[claim_id]
-                for claim_id in _list(story.get("claim_path"))
-                if claim_id in claim_index
-            ]
-            has_boundary = any(beat.get("role") == "boundary" for beat in _dicts(story.get("beats")))
+            path_claims = (
+                [
+                    claim_index[claim_id]
+                    for claim_id in _list(story.get("claim_path"))
+                    if claim_id in claim_index
+                ]
+                if active
+                else []
+            )
+            has_boundary = any(
+                beat.get("role") == "boundary" for beat in _dicts(story.get("beats"))
+            )
             challenged = [
-                str(claim.get("id"))
-                for claim in path_claims
-                if _list(claim.get("challenges"))
+                str(claim.get("id")) for claim in path_claims if _list(claim.get("challenges"))
             ]
             if challenged and not has_boundary:
                 findings.append(
@@ -438,8 +528,10 @@ def _scientific_findings(
                         remediation="Expose it in a boundary beat, alternative explanation, or central gap.",
                     )
                 )
-            for figure in _dicts(story.get("figure_plan")):
-                if not str(figure.get("question", "")).strip() or not _list(figure.get("claim_ids")):
+            for figure in _dicts(story.get("figure_plan")) if active else []:
+                if not str(figure.get("question", "")).strip() or not _list(
+                    figure.get("claim_ids")
+                ):
                     findings.append(
                         Finding(
                             rule_id="PCI-STORY-002",
@@ -449,6 +541,68 @@ def _scientific_findings(
                             remediation="State what the figure tests and which claim its evidence supports.",
                         )
                     )
+            extension = _proposal_extension(story)
+            if extension.get("generated") is True:
+                run_id = extension.get("run_id")
+                run = run_index.get(run_id) if isinstance(run_id, str) else None
+                if run is not None:
+                    manifest = (
+                        run.get("input_manifest")
+                        if isinstance(run.get("input_manifest"), dict)
+                        else {}
+                    )
+                    allowed_evidence = _string_set(manifest.get("evidence_ids"))
+                    allowed_claims = _string_set(manifest.get("claim_ids"))
+                    used_evidence, used_claims = _story_references(story)
+                    extra_evidence = sorted(used_evidence - allowed_evidence)
+                    extra_claims = sorted(used_claims - allowed_claims)
+                    output_ids = set(_list(run.get("output_ids")))
+                    provider = run.get("provider") if isinstance(run.get("provider"), dict) else {}
+                    mismatches: list[str] = []
+                    if extra_evidence:
+                        mismatches.append(f"evidence outside manifest: {', '.join(extra_evidence)}")
+                    if extra_claims:
+                        mismatches.append(f"claims outside manifest: {', '.join(extra_claims)}")
+                    if target not in output_ids:
+                        mismatches.append(f"story is absent from run {run_id} output_ids")
+                    if extension.get("provider_id") != provider.get("id"):
+                        mismatches.append("provider ID does not match its run")
+                    if extension.get("provider_version") != provider.get("version"):
+                        mismatches.append("provider version does not match its run")
+                    if mismatches:
+                        findings.append(
+                            Finding(
+                                rule_id="PCI-AI-001",
+                                severity=Severity.ERROR,
+                                target=target,
+                                message="Generated story violates its recorded input boundary: "
+                                + "; ".join(mismatches)
+                                + ".",
+                                remediation=(
+                                    "Regenerate from the recorded inputs or correct the manifest; "
+                                    "never add unrecorded evidence or claims to generated output."
+                                ),
+                            )
+                        )
+    for run_id, run in run_index.items():
+        for output_id in _string_set(run.get("output_ids")):
+            story = story_index.get(output_id)
+            if story is None:
+                continue
+            extension = _proposal_extension(story)
+            if extension.get("generated") is not True or extension.get("run_id") != run_id:
+                findings.append(
+                    Finding(
+                        rule_id="PCI-AI-001",
+                        severity=Severity.ERROR,
+                        target=output_id,
+                        message=(
+                            f"Run {run_id} lists this story as output, but the story does not "
+                            "identify that generating run."
+                        ),
+                        remediation="Restore the proposal extension or remove the false run-output link.",
+                    )
+                )
     return findings
 
 
@@ -505,6 +659,34 @@ def _dicts(value: Any) -> list[dict[str, Any]]:
 
 def _list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
+
+
+def _string_set(value: Any) -> set[str]:
+    return {item for item in _list(value) if isinstance(item, str)}
+
+
+def _proposal_extension(story: dict[str, Any]) -> dict[str, Any]:
+    extensions = story.get("extensions")
+    if not isinstance(extensions, dict):
+        return {}
+    value = extensions.get("org.paperci.proposal.v1")
+    return value if isinstance(value, dict) else {}
+
+
+def _story_references(story: dict[str, Any]) -> tuple[set[str], set[str]]:
+    evidence_ids: set[str] = set()
+    claim_ids = _string_set(story.get("claim_path"))
+    central = story.get("central_claim")
+    if isinstance(central, str):
+        claim_ids.add(central)
+    for beat in _dicts(story.get("beats")):
+        claim_ids.update(_string_set(beat.get("claim_ids")))
+    for figure in _dicts(story.get("figure_plan")):
+        evidence_ids.update(_string_set(figure.get("evidence_ids")))
+        claim_ids.update(_string_set(figure.get("claim_ids")))
+    for gap in _dicts(story.get("gaps")):
+        claim_ids.update(_string_set(gap.get("blocks")))
+    return evidence_ids, claim_ids
 
 
 def _is_local_uri(uri: str) -> bool:

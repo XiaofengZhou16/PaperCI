@@ -88,6 +88,11 @@ interpretive claims.
 
 PaperCI returns three layers rather than one opaque score.
 
+This is the full product target. The v0.2 pre-alpha implements deterministic
+validity gates plus comparison by gate status, support-link coverage, challenge
+disclosure, recorded gaps, and run provenance. Qualitative editorial
+dimensions and experiment ranking remain roadmap items.
+
 ### A. Validity gates
 
 Deterministic findings with stable identifiers and severity:
@@ -98,7 +103,7 @@ Deterministic findings with stable identifiers and severity:
 - claim scope broader than evidence scope;
 - contradicted direction or statistics;
 - unresolved multiplicity or missingness;
-- generated claim citing a nonexistent evidence ID.
+- generated output citing an evidence or claim ID outside its run manifest.
 
 ### B. Comparative story review
 
@@ -123,7 +128,7 @@ Each judgment includes reasons, counterarguments, and the model/run identity.
 - Figure 1–6 argument map;
 - experiments ranked by discrimination, feasibility, and dependency.
 
-## Non-goals for v0.1
+## Non-goals before 1.0
 
 - writing the full manuscript;
 - evaluating novelty from the entire literature;

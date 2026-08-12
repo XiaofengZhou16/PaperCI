@@ -4,8 +4,9 @@
 
 Core rules protect relationships that are broadly valid across disciplines. A
 domain rule pack may require stronger evidence, but cannot weaken these rules.
-Every finding identifies the affected record, evidence path, remediation, rule
-version, and whether a human override is possible.
+Every current finding identifies the affected record, rule ID, remediation, and
+available evidence/path context. Explicit rule-version fields and override
+suppression remain future compatibility work.
 
 Severity means:
 
@@ -14,10 +15,10 @@ Severity means:
 - `warning`: important information is missing or a defensible exception may exist;
 - `note`: improvement that does not block use.
 
-Overrides are append-only review events with a reason. They suppress presentation,
-not history.
+Review decisions are append-only events with a reason. The current core retains
+findings instead of silently suppressing them.
 
-## Proposed v0.1 rules
+## Current core rules (ProjectSpec 0.2)
 
 ### `PCI-REF-001` — dangling reference
 
@@ -69,7 +70,7 @@ A quantitative comparison should state its unit of analysis and group sizes. Thi
 rule does not guess that cells, reads, fields of view, or technical replicates are
 independent biological samples.
 
-### `PCI-STAT-002` — effect claim reports significance without magnitude
+### `PCI-STAT-002` — effect claim lacks magnitude and uncertainty
 
 **Default:** warning.
 
@@ -93,7 +94,7 @@ A `causal_effect` or `mediation` claim requires an intervention or a design and
 analysis that explicitly identify the causal estimand. Temporal order, prediction,
 adjusted regression, or biological plausibility alone is insufficient.
 
-### `PCI-MECH-001` — mechanism claim supported only by association
+### `PCI-MECH-001` — mechanism claim lacks mechanistic-role evidence
 
 **Default:** error.
 
@@ -108,12 +109,13 @@ of perturbation, temporal, rescue, binding, structural, and orthogonal evidence.
 If a central claim links to challenging evidence, the selected story must expose it
 as a boundary, alternative, or unresolved gap. Deleting the edge is not remediation.
 
-### `PCI-STORY-001` — unsupported central claim
+### `PCI-STORY-001` — unsupported claim in an active story
 
 **Default:** error.
 
-A story's central claim must resolve, have at least one supporting evidence item,
-and not be `prohibited` or `superseded`.
+Every claim in an active story's central/path set must resolve, have at least one
+supporting evidence item, and not be `prohibited` or `superseded`. Rejected and
+superseded stories remain auditable without blocking current scientific gates.
 
 ### `PCI-STORY-002` — figure contains evidence but no argumentative question
 
@@ -123,12 +125,13 @@ Each main figure should answer a scientific question and connect its evidence to
 least one claim. This encourages figure-level argument without prescribing a fixed
 number of figures.
 
-### `PCI-AI-001` — generated claim invents evidence
+### `PCI-AI-001` — generated output escapes its input manifest
 
 **Default:** error, no override.
 
-A model-generated claim may cite only evidence IDs included in its input manifest.
-New observations must return as hypotheses or import suggestions, never evidence.
+A generated story may cite only claim and evidence IDs included in its recorded
+input manifest, and its provider identity must match that run. New observations must
+return as hypotheses or import suggestions, never evidence.
 
 ## Domain-specific examples
 
