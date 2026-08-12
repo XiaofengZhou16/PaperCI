@@ -13,17 +13,17 @@ The specification must be:
 
 ## ProjectSpec
 
-A project contains metadata, evidence, claims, stories, review events, optional
-proposal-run manifests, and optional extensions. The top-level `spec_version`
+A project contains metadata, evidence, claims, stories, frontier hypotheses, review
+events, generation-run manifests, and optional extensions. The top-level `spec_version`
 selects the interpretation of all fields. Project `mode` describes the expected
 workflow; it is not a shortcut that promotes every record in the project.
 
-The current authoring version is `0.2`. The v0.2 validator also reads `0.1`
-projects; running `paperci propose` upgrades its output document to `0.2` because
-proposal-run manifests were added in that version.
+The current authoring version is `0.3`. The v0.3 validator also reads `0.1` and
+`0.2` projects. A mutating `paperci propose` or `paperci hypothesize` run upgrades
+its output to `0.3`; the new version adds the separate `hypotheses` collection.
 
 ```yaml
-spec_version: "0.2"
+spec_version: "0.3"
 project:
   id: gout-cvd-story
   title: Trained myelopoiesis and plaque inflammation
@@ -31,12 +31,13 @@ project:
 evidence: []
 claims: []
 stories: []
+hypotheses: []
 reviews: []
 runs: []
 ```
 
 IDs are stable within a project and use prefixes by convention: `E`, `C`, `S`,
-`G`, `R`, and `RUN`. They are not regenerated when text or ordering changes.
+`H`, `G`, `R`, and `RUN`. They are not regenerated when text or ordering changes.
 
 ## EvidenceSpec
 
@@ -215,6 +216,78 @@ The core recognizes a small vocabulary without forcing every story into one shap
 
 Profiles may add labels, but renderers must retain the base role.
 
+## HypothesisSpec
+
+A frontier hypothesis is not a current claim. It may be ambitious, but every
+reasoning transition and decisive test remains inspectable.
+
+```yaml
+- id: H001
+  statement: A candidate regulator may mediate the anchored response, and a
+    target-engaged perturbation plus rescue should alter the outcome.
+  strategy: mechanistic-deepening
+  status: speculative
+  seed_claim: C002
+  anchor_claims: [C001, C002]
+  evidence_ids: [E001, E002]
+  inference_steps:
+    - kind: observed
+      statement: Target expression and motif accessibility changed after exposure.
+      grounded_in: [E001, E002]
+    - kind: inferred
+      statement: The changes may share a regulatory process.
+      grounded_in: [C001, C002]
+    - kind: speculative
+      statement: The candidate regulator is functionally required.
+      grounded_in: [C002]
+  alternatives:
+    - The motif marks a correlated chromatin state without direct regulation.
+  predictions:
+    - Perturbation changes the outcome with measurable target engagement.
+  decisive_tests:
+    - design: Perturb the regulator and perform rescue with a pre-specified readout.
+      distinguishes: [direct_regulation, correlated_chromatin_state]
+      expected_outcomes:
+        - model: direct_regulation
+          expected: Perturbation changes the outcome and rescue restores it.
+        - model: correlated_chromatin_state
+          expected: The outcome persists despite target engagement.
+      falsifier: A well-powered target-engaged perturbation leaves the outcome unchanged.
+      feasibility: medium
+      expected_information_gain: high
+      dependencies: [validated perturbation, matched controls]
+  evidence_upgrade_path:
+    - Replicate the anchored result with uncertainty.
+    - Establish temporal order and functional engagement.
+    - Add rescue and orthogonal validation.
+  evidence_distance: near
+  ambition_profile:
+    conceptual_advance: {level: medium, basis: "Mechanism could connect the anchors."}
+    explanatory_breadth: {level: medium, basis: "Two claims are linked."}
+    cross_scale_reach: {level: low, basis: "No cross-scale bridge is yet specified."}
+    discriminating_power: {level: high, basis: "Competing outcomes are explicit."}
+    testability: {level: high, basis: "A falsifier is pre-specified."}
+    feasibility: {level: medium, basis: "Requires a validated perturbation."}
+  novelty:
+    status: unchecked
+    note: No literature search was performed.
+    literature_sources: []
+  figure_plan:
+    - figure: 1
+      role: evidence_anchor
+      question: Which observations motivate the hypothesis?
+      evidence_ids: [E001, E002]
+```
+
+Strategies are `mechanistic-deepening`, `cross-scale-bridge`, and
+`paradigm-challenge`. Generated hypotheses always start as `speculative`.
+`shortlisted` requires a human `select` ReviewEvent.
+
+Novelty status is `unchecked`, `checked`, `potentially_novel`, or `not_novel`.
+Any status other than `unchecked` requires a dated assessment and at least one
+traceable literature source. This is a provenance requirement, not proof of
+priority or publication fit.
+
 ## Gap and experiment proposals
 
 A gap is an unresolved question linked to the claims it blocks. A proposed
@@ -239,8 +312,8 @@ probability.
 
 ## RunManifest
 
-Every built-in proposal run records what the provider was allowed to see and which
-stories it produced:
+Every built-in generation run records what the provider was allowed to see and
+which stories or hypotheses it produced:
 
 ```yaml
 - id: RUN001
@@ -272,6 +345,10 @@ Generated stories carry a namespaced extension pointing to their run, provider,
 version, and strategy. `PCI-AI-001` fails if they cite a claim or evidence ID outside
 the recorded input manifest. Run provenance does not verify scientific correctness,
 and generated stories always begin as `candidate`.
+
+Hypothesis generation uses `kind: hypothesis_generation`, outputs `H` IDs, and
+records `org.paperci.hypothesis.v1`. The same input-boundary rule applies, while
+generated hypotheses always begin as `speculative`.
 
 ## ReviewEvent
 

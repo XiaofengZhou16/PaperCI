@@ -12,8 +12,14 @@ from jsonschema import Draft202012Validator, FormatChecker
 from paperci import __version__
 from paperci.comparison import compare_stories
 from paperci.engine import validate_project
-from paperci.errors import ProposalError
+from paperci.errors import HypothesisError, ProposalError
 from paperci.findings import Severity
+from paperci.hypotheses import (
+    DeterministicHypothesisProvider,
+    HypothesisProviderResult,
+    hypothesize,
+)
+from paperci.hypothesis_comparison import compare_hypotheses
 from paperci.project import ProjectDocument, load_project, load_schema
 from paperci.proposals import propose_stories
 from paperci.providers import DeterministicStoryProvider, ProviderResult
@@ -35,6 +41,13 @@ def test_previous_spec_version_remains_readable() -> None:
     project = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
     project["spec_version"] = "0.1"
     project.pop("runs")
+    project.pop("hypotheses", None)
+    errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(project))
+    assert errors == []
+
+    project = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    project["spec_version"] = "0.2"
+    project.pop("hypotheses", None)
     errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(project))
     assert errors == []
 
@@ -143,7 +156,8 @@ def test_deterministic_proposal_is_bounded_idempotent_and_supersedable() -> None
     provider = DeterministicStoryProvider()
 
     first = propose_stories(document, provider, arcs=3)
-    assert first.document.data["spec_version"] == "0.2"
+    assert first.document.data["spec_version"] == "0.3"
+    assert first.document.data["hypotheses"] == []
     assert len(first.stories) == 3
     assert first.reused is False
     assert first.run["input_manifest"] == {
@@ -279,3 +293,186 @@ def test_provider_cannot_self_promote_a_story() -> None:
         arcs=1,
     )
     assert outcome.stories[0]["status"] == "candidate"
+
+
+def test_hypotheses_are_bounded_falsifiable_idempotent_and_supersedable() -> None:
+    data = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    data["stories"] = []
+    data["runs"] = []
+    document = ProjectDocument(path=EXAMPLE, data=data)
+
+    first = hypothesize(document, count=3)
+    assert first.document.data["spec_version"] == "0.3"
+    assert len(first.hypotheses) == 3
+    assert [item["strategy"] for item in first.hypotheses] == [
+        "mechanistic-deepening",
+        "cross-scale-bridge",
+        "paradigm-challenge",
+    ]
+    assert all(item["status"] == "speculative" for item in first.hypotheses)
+    assert all(item["novelty"]["status"] == "unchecked" for item in first.hypotheses)
+    assert all(item["decisive_tests"][0]["falsifier"] for item in first.hypotheses)
+    assert all(item["alternatives"] for item in first.hypotheses)
+    assert all(
+        item["inference_steps"][0]["statement"] != data["claims"][1]["text"]
+        for item in first.hypotheses
+    )
+    assert first.run["input_manifest"] == {
+        "evidence_ids": ["E001", "E002"],
+        "claim_ids": ["C001", "C002"],
+    }
+    assert len(first.document.data["claims"]) == len(data["claims"])
+
+    first.document.data["evidence"].reverse()
+    first.document.data["claims"].reverse()
+    reused = hypothesize(first.document, count=3)
+    assert reused.reused is True
+    assert reused.run["id"] == first.run["id"]
+
+    first.document.data["claims"][0]["text"] += " Updated."
+    changed = hypothesize(first.document, count=3)
+    assert changed.reused is False
+    assert changed.run["id"] == "RUN002"
+    previous_ids = set(first.run["output_ids"])
+    assert all(
+        item["status"] == "superseded"
+        for item in changed.document.data["hypotheses"]
+        if item["id"] in previous_ids
+    )
+
+
+def test_generated_hypothesis_cannot_escape_run_manifest() -> None:
+    data = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    data["stories"] = []
+    data["runs"] = []
+    outcome = hypothesize(ProjectDocument(path=EXAMPLE, data=data), count=1)
+    extra = copy.deepcopy(data["evidence"][0])
+    extra["id"] = "E003"
+    outcome.document.data["evidence"].append(extra)
+    outcome.document.data["hypotheses"][0]["evidence_ids"].append("E003")
+    findings = validate_project(outcome.document, scientific=True)
+    assert any(
+        finding.rule_id == "PCI-AI-001"
+        and finding.target == "H001"
+        and finding.severity == Severity.ERROR
+        for finding in findings
+    )
+
+
+def test_hypothesis_comparison_is_multidimensional_not_a_journal_score() -> None:
+    data = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    data["stories"] = []
+    data["runs"] = []
+    outcome = hypothesize(ProjectDocument(path=EXAMPLE, data=data), count=3)
+    comparison = compare_hypotheses(outcome.document)
+    assert comparison.priority_for_review == "H001"
+    assert all(row.novelty == "unchecked" for row in comparison.hypotheses)
+    assert "not a journal-fit score" in comparison.rationale
+    assert "publication forecast" in comparison.rationale
+
+
+def test_checked_novelty_requires_dated_literature_sources() -> None:
+    data = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    data["stories"] = []
+    data["runs"] = []
+    outcome = hypothesize(ProjectDocument(path=EXAMPLE, data=data), count=1)
+    hypothesis = outcome.document.data["hypotheses"][0]
+    hypothesis["novelty"] = {
+        "status": "potentially_novel",
+        "note": "Claimed without a search record.",
+        "literature_sources": [],
+    }
+    errors = list(
+        Draft202012Validator(load_schema(), format_checker=FormatChecker()).iter_errors(
+            outcome.document.data
+        )
+    )
+    assert any("is a required property" in error.message for error in errors)
+    assert any("should be non-empty" in error.message for error in errors)
+
+
+def test_hypothesis_shortlisting_requires_human_selection() -> None:
+    data = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    data["stories"] = []
+    data["runs"] = []
+    outcome = hypothesize(ProjectDocument(path=EXAMPLE, data=data), count=1)
+    outcome.document.data["hypotheses"][0]["status"] = "shortlisted"
+    findings = validate_project(outcome.document, scientific=True)
+    assert any(finding.rule_id == "PCI-HYP-004" for finding in findings)
+
+    outcome.document.data["reviews"] = [
+        {
+            "id": "R001",
+            "target": "H001",
+            "actor": {"kind": "human", "id": "researcher"},
+            "decision": "select",
+            "timestamp": "2026-08-13T00:00:00+08:00",
+        }
+    ]
+    findings = validate_project(outcome.document, scientific=True)
+    assert not any(finding.rule_id == "PCI-HYP-004" for finding in findings)
+
+
+def test_hypothesis_provider_cannot_self_promote_or_escape_inputs() -> None:
+    data = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    data["stories"] = []
+    data["runs"] = []
+
+    class SelfPromotingProvider(DeterministicHypothesisProvider):
+        provider_id = "test.self-promoting-hypothesis-provider"
+
+        def generate(self, context):
+            result = super().generate(context)
+            item = copy.deepcopy(result.hypotheses[0])
+            item["status"] = "shortlisted"
+            return HypothesisProviderResult((item,))
+
+    outcome = hypothesize(
+        ProjectDocument(path=EXAMPLE, data=copy.deepcopy(data)),
+        SelfPromotingProvider(),
+        count=1,
+    )
+    assert outcome.hypotheses[0]["status"] == "speculative"
+
+    class EscapingProvider(DeterministicHypothesisProvider):
+        provider_id = "test.escaping-hypothesis-provider"
+
+        def generate(self, context):
+            result = super().generate(context)
+            item = copy.deepcopy(result.hypotheses[0])
+            item["evidence_ids"] = ["E999"]
+            return HypothesisProviderResult((item,))
+
+    with pytest.raises(HypothesisError, match="project boundary"):
+        hypothesize(
+            ProjectDocument(path=EXAMPLE, data=copy.deepcopy(data)),
+            EscapingProvider(),
+            count=1,
+        )
+
+
+def test_offline_hypothesis_provider_cannot_claim_novelty() -> None:
+    data = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    data["stories"] = []
+    data["runs"] = []
+
+    class FalseNoveltyProvider(DeterministicHypothesisProvider):
+        provider_id = "test.false-novelty-provider"
+
+        def generate(self, context):
+            result = super().generate(context)
+            item = copy.deepcopy(result.hypotheses[0])
+            item["novelty"] = {
+                "status": "potentially_novel",
+                "note": "Unverified priority claim.",
+                "checked_at": "2026-08-13T00:00:00+08:00",
+                "literature_sources": [{"uri": "doi:10.0000/example"}],
+            }
+            return HypothesisProviderResult((item,))
+
+    with pytest.raises(HypothesisError, match="PCI-HYP-005"):
+        hypothesize(
+            ProjectDocument(path=EXAMPLE, data=data),
+            FalseNoveltyProvider(),
+            count=1,
+        )

@@ -9,6 +9,10 @@ PaperCI therefore separates hard validity gates from a comparative scorecard.
 Stories with error-level hard-gate failures are not ranked as submission-ready.
 They may remain visible as hypotheses or high-risk arcs.
 
+The same principle applies to frontier hypotheses: ambition dimensions remain
+separate, novelty is independently checked, and comparison never emits an impact or
+journal-fit score.
+
 ## Comparative scorecard
 
 Each dimension uses an ordinal four-level rubric and includes a rationale plus
@@ -27,6 +31,24 @@ evidence/claim references.
 
 These levels are comparative decision aids, not probabilities or universal measures
 of scientific quality.
+
+## Frontier hypothesis evaluation
+
+Each Hypothesis Card is evaluated on two layers.
+
+Hard gates require:
+
+- all evidence and claim anchors occur in the recorded run manifest;
+- observed, inferred, and speculative statements are visibly separated;
+- at least one plausible competing explanation;
+- a decisive test with model-specific expected outcomes and an explicit falsifier;
+- human review before shortlisting.
+
+The comparative view reports conceptual advance, explanatory breadth, cross-scale
+reach, discriminating power, testability, feasibility, evidence distance, and
+novelty status. The deterministic baseline may prioritize the next human review by
+discriminating power, testability, distance, and feasibility, but this priority is
+not evidence support, novelty, scientific quality, or predicted publication value.
 
 ## Arc diversity contract
 
@@ -84,6 +106,10 @@ When a new model becomes available, the benchmark reruns a frozen suite and repo
 - arc diversity;
 - uncertainty calibration;
 - latency, cost, and disclosed input volume.
+- hypothesis-reference invention rate;
+- percentage of hypotheses with genuinely distinguishing expected outcomes;
+- expert identification of hidden inference jumps;
+- novelty-claim violations when literature mode is offline.
 
 An upgrade is not adopted by default if it improves prose preference while worsening
 evidence integrity. Provider defaults change through a versioned decision record.

@@ -16,8 +16,10 @@ files / notes / pipelines
     human confirmation
           v
  EvidenceSpec -> ClaimSpec -> StorySpec
-      |             |            |
-      +------ provenance graph ---+
+      |             |
+      |             +------> HypothesisSpec
+      |                        (separate speculative track)
+      +------------ provenance graph --------+
                     |
        deterministic validators
                     |
@@ -28,7 +30,7 @@ files / notes / pipelines
 
 ## Core packages
 
-The v0.2 implementation is Python 3.11+ and keeps the initial core deliberately
+The v0.3 implementation is Python 3.11+ and keeps the initial core deliberately
 small:
 
 ```text
@@ -38,8 +40,10 @@ src/paperci/
   providers.py    provider protocol and offline deterministic baseline
   proposals.py    input hashing, idempotency, superseding, and run manifests
   comparison.py   hard-gate and transparent coverage comparison
+  hypotheses.py   offline frontier Hypothesis Cards and run manifests
+  hypothesis_comparison.py  multidimensional ambition comparison
   render.py       Markdown, JSON, text, and SARIF output
-  cli.py          demo, init, add, claim, propose, compare, lint, report, doctor
+  cli.py          evidence/story and frontier-hypothesis commands
 ```
 
 Current runtime dependencies are intentionally limited to Typer for the CLI,
@@ -68,11 +72,19 @@ Represents a paper-level argument: central question, central claim, ordered clai
 path, story beats, figure sequence, unresolved gaps, and proposed discriminating
 experiments.
 
+### HypothesisSpec
+
+Represents an explicitly speculative research direction: evidence and claim
+anchors, an observed/inferred/speculative reasoning ladder, alternatives,
+predictions, falsifiers, decisive tests, evidence distance, ambition dimensions,
+novelty-assessment provenance, and a figure-question plan. It is not a ClaimSpec and
+cannot be treated as a current conclusion.
+
 The combined JSON Schema is in `spec/paperci.schema.json`. Public releases should
 publish immutable schema URIs such as:
 
 ```text
-https://paperci.org/spec/v0.2/project.schema.json
+https://paperci.org/spec/v0.3/project.schema.json
 ```
 
 ## Validation pipeline
@@ -119,10 +131,10 @@ Rules produce findings; they do not silently rewrite claims.
 ### 4. Model review
 
 Only after structural gates run may a provider propose arcs. Scientific hard gates
-are computed for the provider context and rerun on its output. The v0.2 built-in
-provider is deterministic and offline: it reorganizes only existing claims and
-evidence IDs. Future model findings must remain namespaced, reproducible records and
-must never override hard-gate failures.
+are computed for the provider context and rerun on its output. The built-in story
+and hypothesis providers are deterministic and offline: they use only existing
+claim and evidence IDs. Future model findings must remain namespaced, reproducible
+records and must never override hard-gate failures.
 
 ## Model provider protocol
 
@@ -136,6 +148,12 @@ class StoryProvider(Protocol):
 
     def propose(self, context: ProposalContext) -> ProviderResult: ...
 ```
+
+The frontier track exposes the parallel `HypothesisProvider` protocol. The core
+allocates IDs, forces generated state to `speculative`, records the run manifest,
+and revalidates provider output. A provider controls scientific content but cannot
+self-promote, escape recorded inputs, or claim a literature assessment from an
+offline run.
 
 Future provider capabilities may include:
 

@@ -18,14 +18,14 @@ Severity means:
 Review decisions are append-only events with a reason. The current core retains
 findings instead of silently suppressing them.
 
-## Current core rules (ProjectSpec 0.2)
+## Current core rules (ProjectSpec 0.3)
 
 ### `PCI-REF-001` — dangling reference
 
 **Default:** error, no override.
 
-Every evidence, claim, story, figure, gap, and review reference must resolve to a
-compatible record type.
+Every evidence, claim, story, hypothesis, figure, gap, run, and review reference
+must resolve to a compatible record type.
 
 ### `PCI-PROV-001` — quantitative source has no locator
 
@@ -129,9 +129,47 @@ number of figures.
 
 **Default:** error, no override.
 
-A generated story may cite only claim and evidence IDs included in its recorded
-input manifest, and its provider identity must match that run. New observations must
-return as hypotheses or import suggestions, never evidence.
+A generated story or hypothesis may cite only claim and evidence IDs included in
+its recorded input manifest, and its provider identity must match that run. New
+observations must return as import suggestions, never evidence.
+
+### `PCI-HYP-001` — novelty has not been checked
+
+**Default:** note.
+
+Offline hypothesis generation cannot claim novelty. Until a dated assessment with
+traceable literature sources exists, renderers keep novelty as `unchecked`.
+
+### `PCI-HYP-002` — hypothesis lacks a falsifier
+
+**Default:** error.
+
+Every active frontier hypothesis requires a decisive test and an explicit result
+that would falsify or materially narrow it. A generic request for “more validation”
+is insufficient.
+
+### `PCI-HYP-003` — competing explanation absent
+
+**Default:** error.
+
+Every active frontier hypothesis names at least one plausible alternative. Its
+decisive test should describe different expected outcomes under the leading and
+competing models.
+
+### `PCI-HYP-004` — software-generated hypothesis self-shortlisted
+
+**Default:** error, no override.
+
+A hypothesis may be `shortlisted` only when a human `select` ReviewEvent targets
+it. Software and models may generate or review hypotheses but cannot promote them.
+
+### `PCI-HYP-005` — offline provider claims literature novelty
+
+**Default:** error, no override.
+
+A generation run recorded with `literature_mode: offline` must leave novelty
+`unchecked` and cannot attach supposed literature sources. A provider cannot
+manufacture a novelty assessment without performing and recording the search.
 
 ## Domain-specific examples
 

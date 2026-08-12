@@ -93,7 +93,8 @@ def propose_stories(
         raise ProposalError(f"Project has structural errors ({rules}); run paperci validate first.")
 
     working = ProjectDocument(path=document.path, data=copy.deepcopy(document.data))
-    working.data["spec_version"] = "0.2"
+    working.data["spec_version"] = "0.3"
+    working.data.setdefault("hypotheses", [])
     evidence = _dict_index(working.data.get("evidence"))
     claims = tuple(_dicts(working.data.get("claims")))
     if not claims:

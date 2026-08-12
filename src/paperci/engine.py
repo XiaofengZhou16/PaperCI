@@ -63,7 +63,7 @@ def _schema_findings(document: ProjectDocument) -> list[Finding]:
 
 
 def _records(document: ProjectDocument) -> Iterable[tuple[str, int, dict[str, Any]]]:
-    for collection in ("evidence", "claims", "stories", "reviews", "runs"):
+    for collection in ("evidence", "claims", "stories", "hypotheses", "reviews", "runs"):
         values = document.data.get(collection, [])
         if not isinstance(values, list):
             continue
@@ -189,6 +189,45 @@ def _reference_findings(
                         f"/stories/{offset}/gaps/{gap_index}/blocks/{position}",
                     )
 
+    hypotheses = document.data.get("hypotheses", [])
+    if isinstance(hypotheses, list):
+        for offset, hypothesis in enumerate(hypotheses):
+            if not isinstance(hypothesis, dict):
+                continue
+            owner = str(hypothesis.get("id", f"hypotheses[{offset}]"))
+            require(
+                owner,
+                hypothesis.get("seed_claim"),
+                {"claims"},
+                f"/hypotheses/{offset}/seed_claim",
+            )
+            for field, expected in (
+                ("anchor_claims", {"claims"}),
+                ("evidence_ids", {"evidence"}),
+            ):
+                for position, reference in enumerate(_list(hypothesis.get(field))):
+                    require(
+                        owner,
+                        reference,
+                        expected,
+                        f"/hypotheses/{offset}/{field}/{position}",
+                    )
+            for step_index, step in enumerate(_dicts(hypothesis.get("inference_steps"))):
+                for position, reference in enumerate(_list(step.get("grounded_in"))):
+                    require(
+                        owner,
+                        reference,
+                        {"evidence", "claims"},
+                        f"/hypotheses/{offset}/inference_steps/{step_index}/grounded_in/{position}",
+                    )
+            for figure_index, figure in enumerate(_dicts(hypothesis.get("figure_plan"))):
+                for position, reference in enumerate(_list(figure.get("evidence_ids"))):
+                    require(
+                        owner,
+                        reference,
+                        {"evidence"},
+                        f"/hypotheses/{offset}/figure_plan/{figure_index}/evidence_ids/{position}",
+                    )
     reviews = document.data.get("reviews", [])
     if isinstance(reviews, list):
         for offset, review in enumerate(reviews):
@@ -198,7 +237,7 @@ def _reference_findings(
             require(
                 owner,
                 review.get("target"),
-                {"evidence", "claims", "stories"},
+                {"evidence", "claims", "stories", "hypotheses"},
                 f"/reviews/{offset}/target",
             )
 
@@ -224,8 +263,16 @@ def _reference_findings(
                         {"claims"},
                         f"/runs/{offset}/input_manifest/claim_ids/{position}",
                     )
+            expected_outputs = (
+                {"hypotheses"} if run.get("kind") == "hypothesis_generation" else {"stories"}
+            )
             for position, reference in enumerate(_list(run.get("output_ids"))):
-                require(owner, reference, {"stories"}, f"/runs/{offset}/output_ids/{position}")
+                require(
+                    owner,
+                    reference,
+                    expected_outputs,
+                    f"/runs/{offset}/output_ids/{position}",
+                )
 
     if isinstance(stories, list):
         for offset, story in enumerate(stories):
@@ -247,6 +294,28 @@ def _reference_findings(
                             path=path,
                             message="Generated story has no valid proposal-run reference.",
                             remediation="Restore its string run_id or regenerate the story.",
+                        )
+                    )
+    if isinstance(hypotheses, list):
+        for offset, hypothesis in enumerate(hypotheses):
+            if not isinstance(hypothesis, dict):
+                continue
+            extension = _hypothesis_extension(hypothesis)
+            if extension.get("generated") is True:
+                owner = str(hypothesis.get("id", f"hypotheses[{offset}]"))
+                run_id = extension.get("run_id")
+                path = f"/hypotheses/{offset}/extensions/org.paperci.hypothesis.v1/run_id"
+                if isinstance(run_id, str):
+                    require(owner, run_id, {"runs"}, path)
+                else:
+                    findings.append(
+                        Finding(
+                            rule_id="PCI-REF-001",
+                            severity=Severity.ERROR,
+                            target=owner,
+                            path=path,
+                            message="Generated hypothesis has no valid generation-run reference.",
+                            remediation="Restore its string run_id or regenerate the hypothesis.",
                         )
                     )
     return findings
@@ -586,6 +655,8 @@ def _scientific_findings(
                         )
     for run_id, run in run_index.items():
         for output_id in _string_set(run.get("output_ids")):
+            if run.get("kind") != "story_proposal":
+                continue
             story = story_index.get(output_id)
             if story is None:
                 continue
@@ -601,6 +672,151 @@ def _scientific_findings(
                             "identify that generating run."
                         ),
                         remediation="Restore the proposal extension or remove the false run-output link.",
+                    )
+                )
+    findings.extend(_hypothesis_findings(document, run_index, evidence_index, claim_index))
+    return findings
+
+
+def _hypothesis_findings(
+    document: ProjectDocument,
+    run_index: dict[str, dict[str, Any]],
+    evidence_index: dict[str, dict[str, Any]],
+    claim_index: dict[str, dict[str, Any]],
+) -> list[Finding]:
+    findings: list[Finding] = []
+    hypothesis_index = {
+        str(item["id"]): item for item in _dicts(document.data.get("hypotheses")) if "id" in item
+    }
+    human_shortlists = {
+        review.get("target")
+        for review in _dicts(document.data.get("reviews"))
+        if review.get("decision") == "select"
+        and isinstance(review.get("actor"), dict)
+        and review["actor"].get("kind") == "human"
+    }
+    for item in hypothesis_index.values():
+        hypothesis_id = str(item.get("id", "?"))
+        if item.get("status") in {"rejected", "superseded"}:
+            continue
+        if item.get("status") == "shortlisted" and hypothesis_id not in human_shortlists:
+            findings.append(
+                Finding(
+                    rule_id="PCI-HYP-004",
+                    severity=Severity.ERROR,
+                    target=hypothesis_id,
+                    message="Hypothesis is shortlisted without a human selection event.",
+                    remediation="Add a human select ReviewEvent or return the hypothesis to speculative.",
+                )
+            )
+        novelty = item.get("novelty") if isinstance(item.get("novelty"), dict) else {}
+        if novelty.get("status") == "unchecked":
+            findings.append(
+                Finding(
+                    rule_id="PCI-HYP-001",
+                    severity=Severity.NOTE,
+                    target=hypothesis_id,
+                    message="Hypothesis novelty has not been checked against the literature.",
+                    remediation=(
+                        "Keep novelty language disabled until a dated literature assessment with "
+                        "traceable sources is recorded."
+                    ),
+                )
+            )
+        decisive_tests = _dicts(item.get("decisive_tests"))
+        if not decisive_tests or any(
+            not str(test.get("falsifier", "")).strip() for test in decisive_tests
+        ):
+            findings.append(
+                Finding(
+                    rule_id="PCI-HYP-002",
+                    severity=Severity.ERROR,
+                    target=hypothesis_id,
+                    message="Active hypothesis lacks a decisive test with an explicit falsifier.",
+                    remediation="Add an intervention or comparison that distinguishes alternatives and states what would falsify the hypothesis.",
+                )
+            )
+        if not _list(item.get("alternatives")):
+            findings.append(
+                Finding(
+                    rule_id="PCI-HYP-003",
+                    severity=Severity.ERROR,
+                    target=hypothesis_id,
+                    message="Active hypothesis has no competing explanation.",
+                    remediation="Record at least one plausible alternative and a result that distinguishes it.",
+                )
+            )
+        extension = _hypothesis_extension(item)
+        if extension.get("generated") is True:
+            run_id = extension.get("run_id")
+            run = run_index.get(run_id) if isinstance(run_id, str) else None
+            mismatches: list[str] = []
+            if run is not None:
+                parameters = (
+                    run.get("parameters") if isinstance(run.get("parameters"), dict) else {}
+                )
+                literature_sources = _list(novelty.get("literature_sources"))
+                if parameters.get("literature_mode") == "offline" and (
+                    novelty.get("status") != "unchecked" or literature_sources
+                ):
+                    findings.append(
+                        Finding(
+                            rule_id="PCI-HYP-005",
+                            severity=Severity.ERROR,
+                            target=hypothesis_id,
+                            message="Offline-generated hypothesis claims a literature novelty assessment.",
+                            remediation="Reset novelty to unchecked with no sources, or regenerate through a provider that records a real literature search.",
+                        )
+                    )
+                manifest = (
+                    run.get("input_manifest") if isinstance(run.get("input_manifest"), dict) else {}
+                )
+                allowed_evidence = _string_set(manifest.get("evidence_ids"))
+                allowed_claims = _string_set(manifest.get("claim_ids"))
+                used_evidence, used_claims = _hypothesis_references(
+                    item, set(evidence_index), set(claim_index)
+                )
+                extra_evidence = sorted(used_evidence - allowed_evidence)
+                extra_claims = sorted(used_claims - allowed_claims)
+                if extra_evidence:
+                    mismatches.append(f"evidence outside manifest: {', '.join(extra_evidence)}")
+                if extra_claims:
+                    mismatches.append(f"claims outside manifest: {', '.join(extra_claims)}")
+                if hypothesis_id not in _string_set(run.get("output_ids")):
+                    mismatches.append(f"hypothesis is absent from run {run_id} output_ids")
+                provider = run.get("provider") if isinstance(run.get("provider"), dict) else {}
+                if extension.get("provider_id") != provider.get("id"):
+                    mismatches.append("provider ID does not match its run")
+                if extension.get("provider_version") != provider.get("version"):
+                    mismatches.append("provider version does not match its run")
+            if mismatches:
+                findings.append(
+                    Finding(
+                        rule_id="PCI-AI-001",
+                        severity=Severity.ERROR,
+                        target=hypothesis_id,
+                        message="Generated hypothesis violates its recorded input boundary: "
+                        + "; ".join(mismatches)
+                        + ".",
+                        remediation="Regenerate from recorded inputs; never attach unrecorded evidence or claims to generated output.",
+                    )
+                )
+    for run_id, run in run_index.items():
+        if run.get("kind") != "hypothesis_generation":
+            continue
+        for output_id in _string_set(run.get("output_ids")):
+            hypothesis = hypothesis_index.get(output_id)
+            if hypothesis is None:
+                continue
+            extension = _hypothesis_extension(hypothesis)
+            if extension.get("generated") is not True or extension.get("run_id") != run_id:
+                findings.append(
+                    Finding(
+                        rule_id="PCI-AI-001",
+                        severity=Severity.ERROR,
+                        target=output_id,
+                        message=f"Run {run_id} lists this hypothesis as output, but it does not identify that generating run.",
+                        remediation="Restore the hypothesis extension or remove the false run-output link.",
                     )
                 )
     return findings
@@ -673,6 +889,14 @@ def _proposal_extension(story: dict[str, Any]) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _hypothesis_extension(hypothesis: dict[str, Any]) -> dict[str, Any]:
+    extensions = hypothesis.get("extensions")
+    if not isinstance(extensions, dict):
+        return {}
+    value = extensions.get("org.paperci.hypothesis.v1")
+    return value if isinstance(value, dict) else {}
+
+
 def _story_references(story: dict[str, Any]) -> tuple[set[str], set[str]]:
     evidence_ids: set[str] = set()
     claim_ids = _string_set(story.get("claim_path"))
@@ -686,6 +910,27 @@ def _story_references(story: dict[str, Any]) -> tuple[set[str], set[str]]:
         claim_ids.update(_string_set(figure.get("claim_ids")))
     for gap in _dicts(story.get("gaps")):
         claim_ids.update(_string_set(gap.get("blocks")))
+    return evidence_ids, claim_ids
+
+
+def _hypothesis_references(
+    hypothesis: dict[str, Any],
+    known_evidence: set[str],
+    known_claims: set[str],
+) -> tuple[set[str], set[str]]:
+    evidence_ids = _string_set(hypothesis.get("evidence_ids"))
+    claim_ids = _string_set(hypothesis.get("anchor_claims"))
+    seed_claim = hypothesis.get("seed_claim")
+    if isinstance(seed_claim, str):
+        claim_ids.add(seed_claim)
+    for step in _dicts(hypothesis.get("inference_steps")):
+        for reference in _string_set(step.get("grounded_in")):
+            if reference in known_evidence:
+                evidence_ids.add(reference)
+            elif reference in known_claims:
+                claim_ids.add(reference)
+    for figure in _dicts(hypothesis.get("figure_plan")):
+        evidence_ids.update(_string_set(figure.get("evidence_ids")))
     return evidence_ids, claim_ids
 
 

@@ -1,4 +1,4 @@
-spec_version: "0.2"
+spec_version: "0.3"
 
 project:
   id: minimal-mechanism-example
@@ -123,4 +123,5 @@ stories:
     status: candidate
 
 reviews: []
+hypotheses: []
 runs: []

@@ -11,8 +11,7 @@ DEMO_ARTIFACTS = {
         "exposed_minus_control,5,5,1.1,0.3,1.9,0.02\n"
     ),
     "results/motifs.tsv": (
-        "motif\tenrichment_score\tadjusted_p_value\n"
-        "candidate_transcription_factor\t2.4\t0.04\n"
+        "motif\tenrichment_score\tadjusted_p_value\ncandidate_transcription_factor\t2.4\t0.04\n"
     ),
 }
 
@@ -64,9 +63,7 @@ def _motif_evidence() -> dict[str, Any]:
     return {
         "id": "E002",
         "kind": "analysis_output",
-        "statement": (
-            "A candidate transcription-factor motif was enriched in accessible regions."
-        ),
+        "statement": ("A candidate transcription-factor motif was enriched in accessible regions."),
         "status": "draft",
         "source": {"uri": "results/motifs.tsv", "locator": "row=2"},
         "scope": {
@@ -104,9 +101,7 @@ def _mechanism_claim() -> dict[str, Any]:
         "supports": ["E002"],
         "challenges": [],
         "assumptions": ["Motif enrichment reflects direct occupancy and functional regulation."],
-        "alternatives": [
-            "The motif marks a correlated chromatin state without direct regulation."
-        ],
+        "alternatives": ["The motif marks a correlated chromatin state without direct regulation."],
         "scope": {
             "system": "cultured primary cells",
             "context": "tested exposure protocol",

@@ -1,18 +1,22 @@
 # PaperCI
 
-**Continuous integration for scientific stories.**
+**Continuous integration for evidence-backed scientific stories and hypotheses.**
 
 [![CI](https://github.com/XiaofengZhou16/PaperCI/actions/workflows/ci.yml/badge.svg)](https://github.com/XiaofengZhou16/PaperCI/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
-PaperCI helps researchers answer one difficult question:
+PaperCI helps researchers answer two linked questions:
 
 > Given the results we actually have, what is the strongest scientific story we can responsibly tell?
 
+> Which ambitious, falsifiable mechanisms are worth testing next without pretending they are already established?
+
 It converts experimental results into traceable evidence cards, proposes competing
 paper arcs, tests every claim against its evidence, and makes the most important
-remaining uncertainties explicit for human review.
+remaining uncertainties explicit for human review. A separate frontier track turns
+those boundaries into speculative Hypothesis Cards with competing explanations,
+predictions, falsifiers, decisive tests, and evidence-upgrade paths.
 
 PaperCI is designed to improve when foundation models improve. Models may propose
 better interpretations and stories; the project owns the stable evidence format,
@@ -27,17 +31,19 @@ then create a complete synthetic project without an API key or network call:
 $ python -m venv .venv
 $ source .venv/bin/activate
 $ python -m pip install \
-    https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.2.0a1/paperci-0.2.0a1-py3-none-any.whl
+    https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.3.0a1/paperci-0.3.0a1-py3-none-any.whl
 $ paperci demo
 $ cd paperci-demo
 $ paperci lint --fail-on never
 $ paperci compare
+$ paperci compare-hypotheses
 ```
 
 The demo creates two synthetic result files, traceable evidence and claims, three
-competing stories, a proposal-run manifest, and `paperci-report.md`. It intentionally
-contains an overstated mechanism claim. `paperci lint` flags `PCI-MECH-001`; this is
-the product demonstrating an evidence boundary, not a broken example.
+competing stories, three frontier hypotheses, generation manifests, and
+`paperci-report.md`. It intentionally contains an overstated mechanism claim.
+`paperci lint` flags `PCI-MECH-001`; the frontier track retains ambitious mechanisms
+as explicitly speculative and falsifiable research directions.
 
 See the [ten-minute pilot](docs/pilot.md) to evaluate PaperCI with a safe synthetic
 case and report first-run friction.
@@ -57,6 +63,8 @@ $ paperci claim demo --text "Exposure directly activates the target mechanism." 
 $ paperci propose demo --arcs 3
 $ paperci lint demo --fail-on never
 $ paperci compare demo
+$ paperci hypothesize demo --count 3
+$ paperci compare-hypotheses demo
 $ paperci report demo -o demo/paperci-report.md
 ```
 
@@ -68,6 +76,7 @@ paperci validate examples/minimal-project.yaml
 paperci propose examples/minimal-project.yaml --arcs 3 --dry-run
 paperci lint examples/minimal-project.yaml --fail-on never
 paperci compare examples/minimal-project.yaml
+paperci hypothesize examples/minimal-project.yaml --count 3 --dry-run
 paperci report examples/minimal-project.yaml -o paperci-report.md
 ```
 
@@ -111,6 +120,8 @@ model is not a prerequisite for receiving value.
 5. **Model agnostic.** Model adapters are replaceable and all runs are recorded.
 6. **Git friendly.** Canonical YAML/JSON is readable, diffable, and reviewable.
 7. **Human promotion.** Generated evidence and claims never self-verify.
+8. **Dual-track reasoning.** Current claims and frontier hypotheses remain separate records.
+9. **No journal score.** Ambition is multidimensional; novelty and publication fit require review.
 
 ## Repository design package
 
@@ -125,10 +136,11 @@ model is not a prerequisite for receiving value.
 - [Combined JSON Schema](spec/paperci.schema.json)
 - [Minimal example](examples/minimal-project.yaml)
 
-The repository contains the Milestone 1 Python core plus the first Milestone 2
-baseline: deterministic, offline competing-story generation and comparison. Remote
-and local foundation-model adapters remain future work and are not implied by the
-built-in provider.
+The repository contains the local evidence-bound story workflow plus an offline
+frontier-hypothesis baseline. The built-in hypothesis provider creates transparent
+research scaffolds; it does not search literature, nominate a named molecular actor
+that is absent from the input, or predict journal acceptance. Remote and local
+foundation-model adapters remain future work.
 
 ## Commands
 
@@ -140,6 +152,8 @@ built-in provider.
 | `paperci claim` | Add an evidence-linked candidate claim | Never |
 | `paperci propose` | Generate bounded candidate arcs with the built-in provider | Never |
 | `paperci compare` | Compare active arcs by gates and coverage signals | Never |
+| `paperci hypothesize` | Generate evidence-anchored, falsifiable frontier hypotheses | Never |
+| `paperci compare-hypotheses` | Compare ambition dimensions without a journal score | Never |
 | `paperci validate` | Check schema, references, sources, hashes, and promotion | Never |
 | `paperci lint` | Apply deterministic scientific-story rules | Never |
 | `paperci report` | Render a Markdown decision report | Never |
@@ -151,10 +165,10 @@ code-review system. CI may use `--fail-on error`; exploratory work may use
 
 ## Project status
 
-**Pre-alpha / v0.2.0a1.** The offline CLI, bounded proposal baseline, run manifests,
-and deterministic comparison are implemented and tested; provider plugins and field
-semantics remain open for RFC discussion. No output should be used in a submission
-without independent scientific review.
+**Pre-alpha / v0.3.0a1.** The offline CLI now separates evidence-bound claims from
+frontier hypotheses. Hypothesis novelty remains `unchecked` unless a dated,
+traceable literature assessment is recorded. No output should be used in a
+submission or experimental decision without independent scientific review.
 
 ## License
 

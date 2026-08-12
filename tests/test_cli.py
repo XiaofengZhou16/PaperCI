@@ -42,7 +42,7 @@ def test_init_add_validate_lint_and_report(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     project = yaml.safe_load(project_file.read_text(encoding="utf-8"))
-    assert project["spec_version"] == "0.2"
+    assert project["spec_version"] == "0.3"
     assert project["evidence"][0]["id"] == "E001"
     assert project["evidence"][0]["status"] == "draft"
 
@@ -101,6 +101,29 @@ def test_init_add_validate_lint_and_report(tmp_path: Path) -> None:
     assert comparison["recommended_for_review"] == "S001"
     assert "scientific_quality_score" not in comparison
 
+    before_hypotheses = project_file.read_text(encoding="utf-8")
+    result = runner.invoke(
+        app,
+        ["hypothesize", str(project_dir), "--format", "json", "--dry-run"],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["dry_run"] is True
+    assert project_file.read_text(encoding="utf-8") == before_hypotheses
+
+    result = runner.invoke(app, ["hypothesize", str(project_dir), "--format", "json"])
+    assert result.exit_code == 0, result.output
+    hypotheses = json.loads(result.output)
+    assert hypotheses["reused"] is False
+    assert len(hypotheses["hypotheses"]) == 3
+    assert all(item["status"] == "speculative" for item in hypotheses["hypotheses"])
+    assert all(item["novelty"]["status"] == "unchecked" for item in hypotheses["hypotheses"])
+
+    result = runner.invoke(app, ["compare-hypotheses", str(project_dir), "--format", "json"])
+    assert result.exit_code == 0, result.output
+    hypothesis_comparison = json.loads(result.output)
+    assert hypothesis_comparison["priority_for_review"] == "H001"
+    assert "journal-fit score" in hypothesis_comparison["rationale"]
+
 
 def test_init_refuses_to_overwrite(tmp_path: Path) -> None:
     result = runner.invoke(app, ["init", str(tmp_path), "--id", "one"])
@@ -124,10 +147,13 @@ def test_demo_creates_complete_offline_project_and_refuses_overwrite(tmp_path: P
     assert (destination / "results" / "motifs.tsv").is_file()
     assert report_file.is_file()
     project = yaml.safe_load(project_file.read_text(encoding="utf-8"))
-    assert project["spec_version"] == "0.2"
+    assert project["spec_version"] == "0.3"
     assert [story["id"] for story in project["stories"]] == ["S001", "S002", "S003"]
     assert project["runs"][0]["output_ids"] == ["S001", "S002", "S003"]
+    assert [item["id"] for item in project["hypotheses"]] == ["H001", "H002", "H003"]
+    assert project["runs"][1]["output_ids"] == ["H001", "H002", "H003"]
     assert "PCI-MECH-001" in report_file.read_text(encoding="utf-8")
+    assert "Frontier hypotheses — not current claims" in report_file.read_text(encoding="utf-8")
 
     validation = runner.invoke(app, ["validate", str(destination), "--format", "json"])
     assert validation.exit_code == 0, validation.output

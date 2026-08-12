@@ -90,6 +90,8 @@ The project must never market:
 - automated replacement of scientific reviewers;
 - unsupported claims of eliminating hallucinations;
 - benchmark performance based on private or undisclosed labels.
+- frontier hypotheses as established findings, verified novelty, or “Cell/Nature/Science-level”
+  publication predictions.
 
 ## Sustainability
 

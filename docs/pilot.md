@@ -13,7 +13,7 @@ PaperCI requires Python 3.11 or newer.
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install \
-  https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.2.0a1/paperci-0.2.0a1-py3-none-any.whl
+  https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.3.0a1/paperci-0.3.0a1-py3-none-any.whl
 paperci --version
 paperci demo
 cd paperci-demo
@@ -27,6 +27,7 @@ Windows PowerShell uses `.venv\Scripts\Activate.ps1` instead of the `source` lin
 ```bash
 paperci lint --fail-on never
 paperci compare
+paperci compare-hypotheses
 ```
 
 Open `paperci-report.md` and answer three questions:
@@ -35,6 +36,8 @@ Open `paperci-report.md` and answer three questions:
 2. Does comparing three arcs help you decide what deserves human review?
 3. Does the proposed gap suggest a useful discriminating experiment without
    pretending that the experiment has been performed?
+4. Is it clear that `H001`–`H003` are speculative research directions rather than
+   claims supported by the current evidence?
 
 The expected hard failure is `PCI-MECH-001`: motif enrichment alone does not prove
 direct regulation. `S001` should be recommended only as the next arc for human
@@ -64,6 +67,8 @@ The design-partner pilot is considered promising when independent users can:
   because of wording alone;
 - identify which files they would need to replace for a sanitized project;
 - distinguish a generated candidate story from a human-approved conclusion.
+- explain why an unchecked frontier hypothesis must not be marketed as novel or
+  journal-ready.
 
 Installation failures and misunderstood boundaries count as product findings. They
 must not be removed from pilot reporting to improve an apparent success rate.

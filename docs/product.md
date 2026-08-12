@@ -11,6 +11,11 @@ PaperCI's initial wedge is deliberately narrow:
 > I already have results. Help me discover and stress-test the best paper-level
 > story without saying more than those results support.
 
+Its second, linked job is:
+
+> Given those evidence boundaries, propose ambitious mechanisms worth testing next,
+> while exposing every speculative jump, alternative explanation, and falsifier.
+
 This begins after exploratory analysis and before manuscript drafting. It can
 later connect to upstream analysis and downstream writing tools without trying to
 replace them.
@@ -49,6 +54,8 @@ When I have a folder of heterogeneous results, help me:
 4. turn the selected arc into a figure-level argument;
 5. find the smallest decisive experiment, not merely a longer wish list;
 6. rerun the review when a result, analysis, or model changes.
+7. explore mechanistic-deepening, cross-scale, and paradigm-challenging hypotheses
+   without promoting them into current claims.
 
 ## The ten-minute contract
 
@@ -88,10 +95,10 @@ interpretive claims.
 
 PaperCI returns three layers rather than one opaque score.
 
-This is the full product target. The v0.2 pre-alpha implements deterministic
-validity gates plus comparison by gate status, support-link coverage, challenge
-disclosure, recorded gaps, and run provenance. Qualitative editorial
-dimensions and experiment ranking remain roadmap items.
+The v0.3 pre-alpha implements deterministic validity gates plus two separate
+records: evidence-bound stories and speculative frontier hypotheses. Hypotheses add
+transparent ambition dimensions and falsifiable tests, but literature-aware novelty
+and domain-specific experiment design remain future provider capabilities.
 
 ### A. Validity gates
 
@@ -128,6 +135,15 @@ Each judgment includes reasons, counterarguments, and the model/run identity.
 - Figure 1–6 argument map;
 - experiments ranked by discrimination, feasibility, and dependency.
 
+### D. Frontier hypothesis support
+
+- three genuinely different hypothesis strategies rather than three paraphrases;
+- explicit observed, inferred, and speculative transitions;
+- multidimensional ambition profile without a scalar journal or impact score;
+- novelty status that defaults to `unchecked` offline;
+- model-specific expected outcomes and a result that would falsify each hypothesis;
+- human-only shortlisting.
+
 ## Non-goals before 1.0
 
 - writing the full manuscript;
@@ -137,6 +153,8 @@ Each judgment includes reasons, counterarguments, and the model/run identity.
 - predicting editor or reviewer decisions;
 - replacing formal study-design or statistical review;
 - training a proprietary “Nature taste” model.
+- claiming that a generated hypothesis is novel, journal-ready, or already
+  supported by the current evidence.
 
 ## Adoption requirements
 

@@ -12,8 +12,19 @@ from paperci import __version__
 from paperci.comparison import compare_stories, comparison_json, comparison_text
 from paperci.demo import DEMO_ARTIFACTS, demo_document
 from paperci.engine import validate_project
-from paperci.errors import PaperCIError, ProposalError
+from paperci.errors import HypothesisError, PaperCIError, ProposalError
 from paperci.findings import Finding, Severity, counts
+from paperci.hypotheses import (
+    get_hypothesis_provider,
+    hypothesis_json,
+    hypothesis_text,
+    hypothesize,
+)
+from paperci.hypothesis_comparison import (
+    compare_hypotheses,
+    hypothesis_comparison_json,
+    hypothesis_comparison_text,
+)
 from paperci.project import (
     ProjectDocument,
     empty_project,
@@ -35,7 +46,7 @@ from paperci.render import (
 
 app = typer.Typer(
     name="paperci",
-    help="Continuous integration for scientific stories.",
+    help="Continuous integration for evidence-backed scientific stories and hypotheses.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -57,7 +68,7 @@ def root(
         help="Show the version.",
     ),
 ) -> None:
-    """Inspect and lint evidence-backed scientific stories."""
+    """Inspect evidence-backed stories and separate speculative frontier hypotheses."""
 
 
 @app.command("init")
@@ -86,7 +97,7 @@ def init_command(
     save_project(document)
     typer.echo(f"Created {document.path}")
     typer.echo(
-        "Next: paperci add && paperci claim --support E001 && paperci propose && paperci compare"
+        "Next: paperci add && paperci claim --support E001 && paperci propose && paperci hypothesize"
     )
 
 
@@ -113,15 +124,22 @@ def demo_command(
         outcome = propose_stories(document, get_provider("builtin"), arcs=3)
     except (ProposalError, ValueError) as exc:
         _fail(f"Could not generate demo stories: {exc}")
-    save_project(outcome.document)
-    findings = validate_project(outcome.document, scientific=True)
+    try:
+        frontier = hypothesize(outcome.document, count=3)
+    except HypothesisError as exc:
+        _fail(f"Could not generate demo hypotheses: {exc}")
+    save_project(frontier.document)
+    findings = validate_project(frontier.document, scientific=True)
     report_path = destination / "paperci-report.md"
-    write_or_return(markdown_report(outcome.document, findings), report_path)
-    comparison = compare_stories(outcome.document)
+    write_or_return(markdown_report(frontier.document, findings), report_path)
+    comparison = compare_stories(frontier.document)
     typer.echo(f"Created synthetic demo at {destination.resolve()}")
     typer.echo(
         f"Generated {len(outcome.stories)} competing stories; "
         f"recommended for human review: {comparison.recommended_for_review or 'none'}"
+    )
+    typer.echo(
+        f"Generated {len(frontier.hypotheses)} speculative frontier hypotheses; novelty unchecked."
     )
     typer.echo(
         "Expected gate: C002 triggers PCI-MECH-001 because motif enrichment is not mechanism proof."
@@ -130,6 +148,7 @@ def demo_command(
     typer.echo(f"Next: cd {destination.resolve()}")
     typer.echo("      paperci lint --fail-on never")
     typer.echo("      paperci compare")
+    typer.echo("      paperci compare-hypotheses")
 
 
 @app.command("add")
@@ -393,6 +412,83 @@ def compare_command(
         typer.echo(rendered)
 
 
+@app.command("hypothesize")
+def hypothesize_command(
+    project: Path = typer.Argument(Path("."), help="Project file or directory."),
+    count: int = typer.Option(3, "--count", min=1, max=3, help="Number of frontier hypotheses."),
+    provider_id: str = typer.Option(
+        "builtin",
+        "--provider",
+        help="Provider ID; v0.3 includes the offline deterministic provider.",
+    ),
+    seed_claim: str | None = typer.Option(
+        None, "--seed-claim", help="Supported claim to anchor all generated hypotheses."
+    ),
+    force: bool = typer.Option(False, "--force", help="Create a new run even if inputs match."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without changing the project."),
+    output_format: str = typer.Option("text", "--format", help="Output format: text or json."),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write output to a file."),
+) -> None:
+    """Generate evidence-anchored, falsifiable research hypotheses; always offline."""
+    document = _load_or_fail(project)
+    try:
+        provider = get_hypothesis_provider(provider_id)
+        outcome = hypothesize(
+            document,
+            provider,
+            count=count,
+            seed_claim=seed_claim,
+            force=force,
+        )
+    except (HypothesisError, ValueError) as exc:
+        _fail(str(exc))
+    if not dry_run and not outcome.reused:
+        save_project(outcome.document)
+    if output_format == "text":
+        rendered = hypothesis_text(outcome)
+    elif output_format == "json":
+        rendered = hypothesis_json(outcome, dry_run=dry_run)
+    else:
+        _fail("--format must be text or json.")
+    if dry_run and output_format == "text":
+        rendered += "\n\nDry run: project file was not changed."
+    if output:
+        path = write_or_return(rendered, output)
+        typer.echo(f"Wrote {path}")
+    else:
+        typer.echo(rendered)
+
+
+@app.command("compare-hypotheses")
+def compare_hypotheses_command(
+    project: Path = typer.Argument(Path("."), help="Project file or directory."),
+    output_format: str = typer.Option("text", "--format", help="Output format: text or json."),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write output to a file."),
+) -> None:
+    """Compare hypothesis ambition dimensions without producing a journal or impact score."""
+    document = _load_or_fail(project)
+    structural_errors = [
+        finding
+        for finding in validate_project(document, scientific=False)
+        if finding.severity == Severity.ERROR
+    ]
+    if structural_errors:
+        rules = ", ".join(sorted({finding.rule_id for finding in structural_errors}))
+        _fail(f"Project has structural errors ({rules}); run paperci validate first.")
+    result = compare_hypotheses(document)
+    if output_format == "text":
+        rendered = hypothesis_comparison_text(result)
+    elif output_format == "json":
+        rendered = hypothesis_comparison_json(result)
+    else:
+        _fail("--format must be text or json.")
+    if output:
+        path = write_or_return(rendered, output)
+        typer.echo(f"Wrote {path}")
+    else:
+        typer.echo(rendered)
+
+
 @app.command("validate")
 def validate_command(
     project: Path = typer.Argument(Path("."), help="Project file or directory."),
@@ -450,7 +546,7 @@ def report_command(
         help="Write Markdown to this path.",
     ),
 ) -> None:
-    """Render an evidence, claim, story, and finding report as Markdown."""
+    """Render evidence, claims, stories, hypotheses, and findings as Markdown."""
     document = _load_or_fail(project)
     findings = validate_project(document, scientific=True)
     rendered = markdown_report(document, findings)

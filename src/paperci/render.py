@@ -98,6 +98,7 @@ def markdown_report(document: ProjectDocument, findings: list[Finding]) -> str:
     evidence = _dicts(data.get("evidence"))
     claims = _dicts(data.get("claims"))
     stories = _dicts(data.get("stories"))
+    hypotheses = _dicts(data.get("hypotheses"))
     runs = _dicts(data.get("runs"))
     lines = [
         f"# PaperCI report: {document.title}",
@@ -155,6 +156,62 @@ def markdown_report(document: ProjectDocument, findings: list[Finding]) -> str:
             )
     else:
         lines.append("No claims yet.")
+    lines.extend(["", "## Frontier hypotheses — not current claims", ""])
+    if not hypotheses:
+        lines.append("No frontier hypotheses yet. Run `paperci hypothesize`.")
+    for hypothesis in hypotheses:
+        hypothesis_id = str(hypothesis.get("id", "?"))
+        novelty = hypothesis.get("novelty") if isinstance(hypothesis.get("novelty"), dict) else {}
+        lines.extend(
+            [
+                f"### {hypothesis_id} · {hypothesis.get('strategy', '?')}",
+                "",
+                f"**Speculative hypothesis:** {hypothesis.get('statement', '—')}",
+                "",
+                f"- Status: `{hypothesis.get('status', '?')}`",
+                f"- Seed claim: `{hypothesis.get('seed_claim', '?')}`",
+                "- Evidence anchors: "
+                + (", ".join(f"`{value}`" for value in hypothesis.get("evidence_ids", [])) or "—"),
+                f"- Evidence distance: `{hypothesis.get('evidence_distance', '?')}`",
+                f"- Novelty: `{novelty.get('status', 'unchecked')}` — {novelty.get('note', '—')}",
+                f"- Findings: {_finding_ids(by_target[hypothesis_id])}",
+                "",
+                "**Inference ladder**",
+                "",
+            ]
+        )
+        for step in _dicts(hypothesis.get("inference_steps")):
+            grounded = ", ".join(f"`{value}`" for value in step.get("grounded_in", []))
+            lines.append(
+                f"- `{step.get('kind', '?')}`: {step.get('statement', '—')} "
+                f"(grounded in {grounded or '—'})"
+            )
+        lines.extend(["", "**Research ambition profile**", ""])
+        profile = (
+            hypothesis.get("ambition_profile")
+            if isinstance(hypothesis.get("ambition_profile"), dict)
+            else {}
+        )
+        lines.extend(["| Dimension | Level | Basis |", "|---|---|---|"])
+        for dimension, value in profile.items():
+            if isinstance(value, dict):
+                lines.append(
+                    f"| {_cell(dimension)} | {value.get('level', '?')} | "
+                    f"{_cell(value.get('basis', ''))} |"
+                )
+        tests = _dicts(hypothesis.get("decisive_tests"))
+        if tests:
+            lines.extend(["", "**Decisive tests**", ""])
+            for index, test in enumerate(tests, start=1):
+                lines.extend(
+                    [
+                        f"{index}. {test.get('design', '—')}",
+                        f"   - Distinguishes: {' versus '.join(str(value) for value in test.get('distinguishes', []))}",
+                        f"   - Falsifier: {test.get('falsifier', '—')}",
+                        f"   - Feasibility: `{test.get('feasibility', '?')}`; information gain: `{test.get('expected_information_gain', '?')}`",
+                    ]
+                )
+        lines.append("")
     lines.extend(["", "## Story arcs", ""])
     if not stories:
         lines.append("No story arcs yet. Add supported claims, then run `paperci propose`.")
@@ -195,12 +252,12 @@ def markdown_report(document: ProjectDocument, findings: list[Finding]) -> str:
                     f"- `{gap.get('id', '?')}` ({gap.get('severity', '?')}): {gap.get('question', '—')}"
                 )
             lines.append("")
-    lines.extend(["## Proposal runs", ""])
+    lines.extend(["## Recorded generation runs", ""])
     if runs:
         lines.extend(
             [
-                "| Run | Provider | Input hash | Outputs | Status |",
-                "|---|---|---|---|---|",
+                "| Run | Kind | Provider | Input hash | Outputs | Status |",
+                "|---|---|---|---|---|---|",
             ]
         )
         for run in runs:
@@ -209,18 +266,20 @@ def markdown_report(document: ProjectDocument, findings: list[Finding]) -> str:
             output_ids = ", ".join(f"`{value}`" for value in run.get("output_ids", [])) or "—"
             input_hash = str(run.get("input_hash", "?"))
             lines.append(
-                f"| `{run.get('id', '?')}` | {_cell(provider_label)} | `{input_hash[:12]}…` | "
+                f"| `{run.get('id', '?')}` | {run.get('kind', '?')} | {_cell(provider_label)} | `{input_hash[:12]}…` | "
                 f"{output_ids} | {run.get('status', '?')} |"
             )
     else:
-        lines.append("No proposal runs recorded.")
+        lines.append("No generation runs recorded.")
     lines.append("")
     lines.extend(
         [
             "## Interpretation boundary",
             "",
             "This report checks the structured project against the current PaperCI rules. "
-            "It is not peer review, statistical certification, or a journal acceptance prediction.",
+            "Frontier hypotheses are proposed research directions, not findings supported by the "
+            "current evidence. The report is not peer review, statistical certification, novelty "
+            "verification, an impact score, or a journal acceptance prediction.",
             "",
         ]
     )

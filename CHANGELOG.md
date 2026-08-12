@@ -4,6 +4,27 @@ All notable changes to PaperCI will be documented here. The project follows
 Semantic Versioning for the Python package; the public data specification has its
 own version declared by `spec_version`.
 
+## 0.3.0a1 — 2026-08-13
+
+Dual-track evidence and frontier-hypothesis baseline:
+
+- ProjectSpec `0.3` adds a distinct Hypothesis Card while retaining read
+  compatibility for `0.1` and `0.2` projects;
+- offline `hypothesize` command with mechanistic-deepening, cross-scale-bridge,
+  and paradigm-challenge strategies;
+- explicit observed, inferred, and speculative reasoning steps linked only to
+  recorded evidence and claims;
+- competing explanations, predictions, falsifiers, expected outcomes, decisive
+  tests, and minimum evidence-upgrade paths;
+- multidimensional research-ambition profiles without a scalar impact, journal-fit,
+  novelty, or publication-probability score;
+- novelty locked to `unchecked` in offline generation; checked novelty requires a
+  dated assessment and at least one traceable literature source;
+- `compare-hypotheses` and a dedicated report section that keeps hypotheses separate
+  from supported claims;
+- hypothesis run manifests, input-boundary enforcement, idempotency, superseding,
+  and human-only shortlisting checks.
+
 ## 0.2.0a1 — 2026-08-13
 
 Offline competing-story baseline:

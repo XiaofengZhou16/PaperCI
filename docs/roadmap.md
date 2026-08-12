@@ -107,6 +107,49 @@ Exit criteria:
 - replacing a model requires configuration, not core changes;
 - no model output can self-promote to verified.
 
+## Milestone 2.5 — dual-track frontier hypotheses
+
+**Goal:** turn evidence boundaries into ambitious, falsifiable research directions
+without confusing them with current conclusions.
+
+**Status:** offline ProjectSpec `0.3` baseline implemented in `v0.3.0a1`.
+
+Commands:
+
+```text
+paperci hypothesize --count 3
+paperci compare-hypotheses
+```
+
+Delivered baseline:
+
+- separate Hypothesis Cards with speculative-only generation state;
+- mechanistic-deepening, cross-scale-bridge, and paradigm-challenge strategies;
+- observed/inferred/speculative reasoning ladders;
+- alternatives, predictions, expected outcomes, falsifiers, and decisive tests;
+- multidimensional ambition profiles without a journal or impact score;
+- offline novelty locked to `unchecked`;
+- input manifests, idempotency, superseding, and human-only shortlisting.
+
+Remaining deliverables:
+
+- literature-aware novelty assessment with dated queries and traceable sources;
+- domain-aware hypothesis providers that can propose specific biological nodes only
+  when the inputs or literature justify them;
+- blinded expert comparison of usefulness, hidden inference jumps, and experiment
+  discrimination;
+- visual rendering that distinguishes observed links from speculative mechanisms;
+- resource-aware feasibility estimation.
+
+Exit criteria:
+
+- independent experts judge generated hypotheses non-trivial and testable;
+- no offline output contains an unsupported novelty or priority claim;
+- every proposed decisive test has different expected outcomes under competing
+  explanations;
+- adding a new evidence item invalidates reuse and preserves prior hypotheses as
+  superseded history.
+
 ## Milestone 3 — first domain pack
 
 **Goal:** demonstrate depth in mechanistic biomedicine without making the core

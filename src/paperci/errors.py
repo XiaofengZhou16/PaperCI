@@ -16,3 +16,7 @@ class SchemaNotFoundError(PaperCIError):
 
 class ProposalError(PaperCIError):
     """Raised when story proposals cannot be generated safely."""
+
+
+class HypothesisError(PaperCIError):
+    """Raised when frontier hypotheses cannot be generated safely."""

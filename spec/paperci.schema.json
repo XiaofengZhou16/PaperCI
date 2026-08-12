@@ -1,12 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://paperci.org/spec/v0.2/project.schema.json",
+  "$id": "https://paperci.org/spec/v0.3/project.schema.json",
   "title": "PaperCI ProjectSpec",
   "type": "object",
   "additionalProperties": false,
   "required": ["spec_version", "project", "evidence", "claims", "stories", "reviews"],
+  "allOf": [
+    {
+      "if": {
+        "properties": { "spec_version": { "const": "0.3" } },
+        "required": ["spec_version"]
+      },
+      "then": { "required": ["hypotheses", "runs"] }
+    }
+  ],
   "properties": {
-    "spec_version": { "enum": ["0.1", "0.2"] },
+    "spec_version": { "enum": ["0.1", "0.2", "0.3"] },
     "project": { "$ref": "#/$defs/projectMetadata" },
     "evidence": {
       "type": "array",
@@ -19,6 +28,10 @@
     "stories": {
       "type": "array",
       "items": { "$ref": "#/$defs/story" }
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/hypothesis" }
     },
     "reviews": {
       "type": "array",
@@ -197,6 +210,179 @@
         "extensions": { "type": "object", "additionalProperties": true }
       }
     },
+    "ambitionDimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "basis"],
+      "properties": {
+        "level": { "enum": ["low", "medium", "high", "unknown"] },
+        "basis": { "type": "string", "minLength": 1 }
+      }
+    },
+    "noveltyAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "note", "literature_sources"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": { "enum": ["checked", "potentially_novel", "not_novel"] }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "required": ["checked_at"],
+            "properties": { "literature_sources": { "minItems": 1 } }
+          }
+        }
+      ],
+      "properties": {
+        "status": { "enum": ["unchecked", "checked", "potentially_novel", "not_novel"] },
+        "note": { "type": "string", "minLength": 1 },
+        "checked_at": { "type": "string", "format": "date-time" },
+        "literature_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source" }
+        }
+      }
+    },
+    "inferenceStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "statement", "grounded_in"],
+      "properties": {
+        "kind": { "enum": ["observed", "inferred", "speculative"] },
+        "statement": { "type": "string", "minLength": 1 },
+        "grounded_in": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "expectedOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "expected"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "expected": { "type": "string", "minLength": 1 }
+      }
+    },
+    "hypothesisTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["design", "distinguishes", "expected_outcomes", "falsifier", "feasibility", "expected_information_gain", "dependencies"],
+      "properties": {
+        "design": { "type": "string", "minLength": 1 },
+        "distinguishes": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "expected_outcomes": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/expectedOutcome" }
+        },
+        "falsifier": { "type": "string", "minLength": 1 },
+        "feasibility": { "enum": ["low", "medium", "high", "unknown"] },
+        "expected_information_gain": { "enum": ["low", "medium", "high", "unknown"] },
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "hypothesisFigure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["figure", "role", "question", "evidence_ids"],
+      "properties": {
+        "figure": { "type": "integer", "minimum": 1 },
+        "role": { "enum": ["evidence_anchor", "mechanism_model", "discriminating_test", "boundary"] },
+        "question": { "type": "string", "minLength": 1 },
+        "evidence_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "strategy", "status", "seed_claim", "anchor_claims", "evidence_ids", "inference_steps", "alternatives", "predictions", "decisive_tests", "evidence_upgrade_path", "evidence_distance", "ambition_profile", "novelty", "figure_plan"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "statement": { "type": "string", "minLength": 1 },
+        "strategy": { "enum": ["mechanistic-deepening", "cross-scale-bridge", "paradigm-challenge"] },
+        "status": { "enum": ["speculative", "shortlisted", "rejected", "superseded"] },
+        "seed_claim": { "$ref": "#/$defs/id" },
+        "anchor_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        },
+        "evidence_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        },
+        "inference_steps": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/inferenceStep" }
+        },
+        "alternatives": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "predictions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "decisive_tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/hypothesisTest" }
+        },
+        "evidence_upgrade_path": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_distance": { "enum": ["near", "intermediate", "far", "unknown"] },
+        "ambition_profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["conceptual_advance", "explanatory_breadth", "cross_scale_reach", "discriminating_power", "testability", "feasibility"],
+          "properties": {
+            "conceptual_advance": { "$ref": "#/$defs/ambitionDimension" },
+            "explanatory_breadth": { "$ref": "#/$defs/ambitionDimension" },
+            "cross_scale_reach": { "$ref": "#/$defs/ambitionDimension" },
+            "discriminating_power": { "$ref": "#/$defs/ambitionDimension" },
+            "testability": { "$ref": "#/$defs/ambitionDimension" },
+            "feasibility": { "$ref": "#/$defs/ambitionDimension" }
+          }
+        },
+        "novelty": { "$ref": "#/$defs/noveltyAssessment" },
+        "figure_plan": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/hypothesisFigure" }
+        },
+        "extensions": { "type": "object", "additionalProperties": true }
+      }
+    },
     "beat": {
       "type": "object",
       "additionalProperties": false,
@@ -347,7 +533,7 @@
       ],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "const": "story_proposal" },
+        "kind": { "enum": ["story_proposal", "hypothesis_generation"] },
         "provider": { "$ref": "#/$defs/provider" },
         "input_hash": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
         "input_manifest": { "$ref": "#/$defs/inputManifest" },
