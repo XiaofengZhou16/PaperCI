@@ -14,9 +14,8 @@ This policy will be revised before a stable `1.0` release.
 Do not attach unpublished data, credentials, identifiable participant information,
 or proprietary artifacts to a public issue.
 
-Until a private repository security-advisory channel is configured, contact the
-maintainers through a private channel listed in the repository profile and include
-only:
+Use GitHub's [private vulnerability-reporting form](https://github.com/XiaofengZhou16/PaperCI/security/advisories/new).
+Include only:
 
 - affected PaperCI version;
 - operating system and Python version;

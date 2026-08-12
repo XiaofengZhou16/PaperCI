@@ -12,7 +12,7 @@ PaperCI requires Python 3.11 or newer.
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
-ruff check src tests
+ruff check src tests scripts
 pytest
 paperci doctor examples/minimal-project.yaml
 ```
@@ -68,15 +68,19 @@ Breaking semantics require a major spec version and migration command.
 Run before requesting review:
 
 ```bash
-ruff check src tests
+ruff check src tests scripts
 pytest
-python -m compileall -q src tests
+python -m compileall -q src tests scripts
 paperci validate examples/minimal-project.yaml
 paperci lint examples/minimal-project.yaml --fail-on never
 ```
 
 The example intentionally triggers a mechanism error, so use `--fail-on never` for
 that smoke test.
+
+Maintainer releases follow the [Trusted Publishing checklist](docs/releasing.md).
+Contributors should never add a PyPI token or other publishing credential to a pull
+request.
 
 ## Conduct and security
 

@@ -24,14 +24,13 @@ claim rules, provenance, evaluation cases, and human review workflow.
 
 ## Try it in two minutes
 
-PaperCI is pre-alpha. Install the versioned release artifact directly from GitHub,
-then create a complete synthetic project without an API key or network call:
+PaperCI is pre-alpha. Install the current pre-release from PyPI, then create a
+complete synthetic project without an API key or network call:
 
 ```bash
 $ python -m venv .venv
 $ source .venv/bin/activate
-$ python -m pip install \
-    https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.4.0a1/paperci-0.4.0a1-py3-none-any.whl
+$ python -m pip install --pre paperci
 $ paperci demo
 $ cd paperci-demo
 $ paperci lint --fail-on never
@@ -138,6 +137,7 @@ model is not a prerequisite for receiving value.
 - [Story evaluation](docs/evaluation.md)
 - [Ecosystem and differentiation](docs/ecosystem.md)
 - [MVP and roadmap](docs/roadmap.md)
+- [Release process](docs/releasing.md)
 - [Community and governance](docs/community.md)
 - [Combined JSON Schema](spec/paperci.schema.json)
 - [Minimal example](examples/minimal-project.yaml)

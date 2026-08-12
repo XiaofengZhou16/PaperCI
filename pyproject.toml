@@ -47,7 +47,8 @@ Source = "https://github.com/XiaofengZhou16/PaperCI"
 dev = [
   "build>=1.2",
   "pytest>=7.4,<9",
-  "ruff>=0.6"
+  "ruff>=0.6",
+  "twine>=6,<7"
 ]
 
 [project.scripts]

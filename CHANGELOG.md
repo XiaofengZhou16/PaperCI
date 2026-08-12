@@ -21,8 +21,21 @@ Nature benchmark-driven reasoning upgrade:
   and can emit long, auditable evidence-to-mechanism chains;
 - frontier hypothesis tests now name the recorded process, connected claim, selected
   competing explanation, target engagement, and rescue logic;
-- eight regression tests reproduce the failures observed in the Nagaraja et al.
+- nine core regression tests reproduce the failures observed in the Nagaraja et al.
   Nature benchmark.
+
+## 0.3.0a2 — 2026-08-13
+
+Adoption-readiness pre-release:
+
+- reproducible PyPI publishing through a dedicated Trusted Publishing workflow;
+- release-tag and package-version consistency checks before publication;
+- wheel and source-distribution metadata checks and clean-install smoke tests;
+- PyPI-first installation instructions for the synthetic pilot;
+- version-neutral bug and first-run forms plus feature-request and RFC entry points;
+- private vulnerability-reporting guidance aligned with the enabled repository setting.
+
+This release does not change ProjectSpec semantics or add scientific rules.
 
 ## 0.3.0a1 — 2026-08-13
 

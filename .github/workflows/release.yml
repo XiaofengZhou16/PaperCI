@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    name: Build and verify release distributions
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install development and packaging tools
+        run: python -m pip install -e ".[dev]"
+      - name: Check release tag and package versions
+        run: |
+          python - <<'PY'
+          import os
+          import runpy
+          import tomllib
+          from pathlib import Path
+
+          project_version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          package_version = runpy.run_path("src/paperci/_version.py")["__version__"]
+          expected_tag = f"v{project_version}"
+          release_tag = os.environ["RELEASE_TAG"]
+
+          if project_version != package_version:
+              raise SystemExit(
+                  f"Version mismatch: pyproject={project_version}, package={package_version}"
+              )
+          if release_tag != expected_tag:
+              raise SystemExit(f"Tag mismatch: release={release_tag}, expected={expected_tag}")
+          PY
+      - name: Test
+        run: pytest
+      - name: Code quality
+        run: ruff check src tests scripts
+      - name: Compile
+        run: python -m compileall -q src tests scripts
+      - name: Build wheel and source archive
+        run: python -m build
+      - name: Check distribution metadata
+        run: python -m twine check dist/*
+      - name: Smoke-test built wheel
+        run: python scripts/smoke_distribution.py dist/*.whl
+      - name: Smoke-test source archive
+        run: python scripts/smoke_distribution.py dist/*.tar.gz
+      - name: Store verified distributions
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: paperci-release-distributions
+          path: dist/*
+          if-no-files-found: error
+
+  publish-to-pypi:
+    name: Publish verified distributions to PyPI
+    needs: build-and-verify
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/paperci
+    permissions:
+      id-token: write
+    steps:
+      - name: Download verified distributions
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: paperci-release-distributions
+          path: dist/
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
