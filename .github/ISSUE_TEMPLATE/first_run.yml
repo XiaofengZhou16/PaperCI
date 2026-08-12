@@ -1,0 +1,65 @@
+name: First-run feedback
+description: Report your experience with the synthetic PaperCI demo.
+title: "[First run]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for testing PaperCI. Use synthetic excerpts only. Do not include unpublished, identifying, confidential, or proprietary research data.
+  - type: input
+    id: version
+    attributes:
+      label: PaperCI version
+      placeholder: 0.2.0a1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: macOS 15 and Python 3.12, or Windows 11 and Python 3.11
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options:
+        - GitHub release wheel
+        - Source checkout
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: time
+    attributes:
+      label: Approximate time to first report
+      placeholder: 4 minutes
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: First confusing or failing step
+      description: Include commands and synthetic output only.
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Interpretation of the mechanism gate
+      description: In your own words, why did C002 fail and what evidence would change that?
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: What was useful, if anything?
+    validations:
+      required: true
+  - type: textarea
+    id: improvement
+    attributes:
+      label: Most important improvement
+    validations:
+      required: true

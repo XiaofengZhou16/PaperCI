@@ -112,6 +112,38 @@ def test_init_refuses_to_overwrite(tmp_path: Path) -> None:
     assert (tmp_path / "paperci.yaml").read_text(encoding="utf-8") == original
 
 
+def test_demo_creates_complete_offline_project_and_refuses_overwrite(tmp_path: Path) -> None:
+    destination = tmp_path / "paperci-demo"
+    result = runner.invoke(app, ["demo", str(destination)])
+    assert result.exit_code == 0, result.output
+    assert "Expected gate: C002 triggers PCI-MECH-001" in result.output
+
+    project_file = destination / "paperci.yaml"
+    report_file = destination / "paperci-report.md"
+    assert (destination / "results" / "expression.csv").is_file()
+    assert (destination / "results" / "motifs.tsv").is_file()
+    assert report_file.is_file()
+    project = yaml.safe_load(project_file.read_text(encoding="utf-8"))
+    assert project["spec_version"] == "0.2"
+    assert [story["id"] for story in project["stories"]] == ["S001", "S002", "S003"]
+    assert project["runs"][0]["output_ids"] == ["S001", "S002", "S003"]
+    assert "PCI-MECH-001" in report_file.read_text(encoding="utf-8")
+
+    validation = runner.invoke(app, ["validate", str(destination), "--format", "json"])
+    assert validation.exit_code == 0, validation.output
+    assert json.loads(validation.output)["summary"]["error"] == 0
+
+    comparison = runner.invoke(app, ["compare", str(destination), "--format", "json"])
+    assert comparison.exit_code == 0, comparison.output
+    assert json.loads(comparison.output)["recommended_for_review"] == "S001"
+
+    before = project_file.read_text(encoding="utf-8")
+    repeated = runner.invoke(app, ["demo", str(destination)])
+    assert repeated.exit_code == 2
+    assert "non-empty directory" in repeated.output
+    assert project_file.read_text(encoding="utf-8") == before
+
+
 def test_lint_exit_thresholds() -> None:
     example = Path(__file__).resolve().parents[1] / "examples" / "minimal-project.yaml"
     result = runner.invoke(app, ["lint", str(example)])

@@ -18,13 +18,35 @@ PaperCI is designed to improve when foundation models improve. Models may propos
 better interpretations and stories; the project owns the stable evidence format,
 claim rules, provenance, evaluation cases, and human review workflow.
 
-## The first useful workflow
+## Try it in two minutes
 
-```text
+PaperCI is pre-alpha. Install the versioned release artifact directly from GitHub,
+then create a complete synthetic project without an API key or network call:
+
+```bash
 $ python -m venv .venv
 $ source .venv/bin/activate
-$ pip install -e .
+$ python -m pip install \
+    https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.2.0a1/paperci-0.2.0a1-py3-none-any.whl
+$ paperci demo
+$ cd paperci-demo
+$ paperci lint --fail-on never
+$ paperci compare
+```
 
+The demo creates two synthetic result files, traceable evidence and claims, three
+competing stories, a proposal-run manifest, and `paperci-report.md`. It intentionally
+contains an overstated mechanism claim. `paperci lint` flags `PCI-MECH-001`; this is
+the product demonstrating an evidence boundary, not a broken example.
+
+See the [ten-minute pilot](docs/pilot.md) to evaluate PaperCI with a safe synthetic
+case and report first-run friction.
+
+## Build a project manually
+
+From a source checkout installed with `python -m pip install -e .`:
+
+```text
 $ paperci init demo --id demo-study --title "Demo study"
 $ paperci add demo --statement "Target expression was higher after exposure." \
     --source notes://pilot --locator result-1
@@ -49,9 +71,8 @@ paperci compare examples/minimal-project.yaml
 paperci report examples/minimal-project.yaml -o paperci-report.md
 ```
 
-The example intentionally contains an overstated mechanism claim. `paperci lint`
-should flag `PCI-MECH-001`; that failure demonstrates the evidence boundary rather
-than a broken example.
+The repository example also intentionally contains the same overstated mechanism
+claim, so `paperci lint` should flag `PCI-MECH-001`.
 
 The report contains:
 
@@ -113,6 +134,7 @@ built-in provider.
 
 | Command | Purpose | Network |
 |---|---|---|
+| `paperci demo` | Create and run a complete synthetic example | Never |
 | `paperci init` | Create a readable `paperci.yaml` | Never |
 | `paperci add` | Add a draft evidence card | Never |
 | `paperci claim` | Add an evidence-linked candidate claim | Never |

@@ -4,10 +4,12 @@ All notable changes to PaperCI will be documented here. The project follows
 Semantic Versioning for the Python package; the public data specification has its
 own version declared by `spec_version`.
 
-## 0.2.0a1 — 2026-08-12
+## 0.2.0a1 — 2026-08-13
 
 Offline competing-story baseline:
 
+- one-command `paperci demo` onboarding with synthetic artifacts, three competing
+  arcs, a run manifest, and a Markdown report;
 - `claim` command for evidence-linked candidate claims;
 - deterministic `propose` provider with evidence-conservative, high-risk-hypothesis,
   and minimum-gap strategies;

@@ -10,6 +10,7 @@ from jsonschema import Draft202012Validator
 
 from paperci import __version__
 from paperci.comparison import compare_stories, comparison_json, comparison_text
+from paperci.demo import DEMO_ARTIFACTS, demo_document
 from paperci.engine import validate_project
 from paperci.errors import PaperCIError, ProposalError
 from paperci.findings import Finding, Severity, counts
@@ -87,6 +88,48 @@ def init_command(
     typer.echo(
         "Next: paperci add && paperci claim --support E001 && paperci propose && paperci compare"
     )
+
+
+@app.command("demo")
+def demo_command(
+    destination: Path = typer.Argument(
+        Path("paperci-demo"), help="New or empty directory for the synthetic demo."
+    ),
+) -> None:
+    """Create and run a complete synthetic PaperCI project, entirely offline."""
+    destination = destination.expanduser()
+    if destination.exists() and not destination.is_dir():
+        _fail(f"Destination is not a directory: {destination}")
+    if destination.exists() and any(destination.iterdir()):
+        _fail(f"Refusing to write into non-empty directory: {destination}")
+    destination.mkdir(parents=True, exist_ok=True)
+    document = demo_document(destination / "paperci.yaml")
+    for relative_path, content in DEMO_ARTIFACTS.items():
+        artifact = destination / relative_path
+        artifact.parent.mkdir(parents=True, exist_ok=True)
+        artifact.write_text(content, encoding="utf-8")
+    save_project(document)
+    try:
+        outcome = propose_stories(document, get_provider("builtin"), arcs=3)
+    except (ProposalError, ValueError) as exc:
+        _fail(f"Could not generate demo stories: {exc}")
+    save_project(outcome.document)
+    findings = validate_project(outcome.document, scientific=True)
+    report_path = destination / "paperci-report.md"
+    write_or_return(markdown_report(outcome.document, findings), report_path)
+    comparison = compare_stories(outcome.document)
+    typer.echo(f"Created synthetic demo at {destination.resolve()}")
+    typer.echo(
+        f"Generated {len(outcome.stories)} competing stories; "
+        f"recommended for human review: {comparison.recommended_for_review or 'none'}"
+    )
+    typer.echo(
+        "Expected gate: C002 triggers PCI-MECH-001 because motif enrichment is not mechanism proof."
+    )
+    typer.echo(f"Open the report: {report_path.resolve()}")
+    typer.echo(f"Next: cd {destination.resolve()}")
+    typer.echo("      paperci lint --fail-on never")
+    typer.echo("      paperci compare")
 
 
 @app.command("add")

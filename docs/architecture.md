@@ -39,7 +39,7 @@ src/paperci/
   proposals.py    input hashing, idempotency, superseding, and run manifests
   comparison.py   hard-gate and transparent coverage comparison
   render.py       Markdown, JSON, text, and SARIF output
-  cli.py          init, add, claim, propose, compare, lint, report, doctor
+  cli.py          demo, init, add, claim, propose, compare, lint, report, doctor
 ```
 
 Current runtime dependencies are intentionally limited to Typer for the CLI,
