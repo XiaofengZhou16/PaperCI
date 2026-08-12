@@ -95,7 +95,7 @@ interpretive claims.
 
 PaperCI returns three layers rather than one opaque score.
 
-The v0.3 pre-alpha implements deterministic validity gates plus two separate
+The v0.4 pre-alpha implements deterministic validity gates plus two separate
 records: evidence-bound stories and speculative frontier hypotheses. Hypotheses add
 transparent ambition dimensions and falsifiable tests, but literature-aware novelty
 and domain-specific experiment design remain future provider capabilities.

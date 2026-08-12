@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://paperci.org/spec/v0.3/project.schema.json",
+  "$id": "https://paperci.org/spec/v0.4/project.schema.json",
   "title": "PaperCI ProjectSpec",
   "type": "object",
   "additionalProperties": false,
@@ -8,14 +8,14 @@
   "allOf": [
     {
       "if": {
-        "properties": { "spec_version": { "const": "0.3" } },
+        "properties": { "spec_version": { "enum": ["0.3", "0.4"] } },
         "required": ["spec_version"]
       },
       "then": { "required": ["hypotheses", "runs"] }
     }
   ],
   "properties": {
-    "spec_version": { "enum": ["0.1", "0.2", "0.3"] },
+    "spec_version": { "enum": ["0.1", "0.2", "0.3", "0.4"] },
     "project": { "$ref": "#/$defs/projectMetadata" },
     "evidence": {
       "type": "array",
@@ -86,6 +86,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "n": { "type": "integer", "minimum": 0 },
+        "clusters": { "type": "integer", "minimum": 1 },
         "description": { "type": "string" }
       }
     },
@@ -97,6 +98,7 @@
           "enum": ["experiment", "observational", "simulation", "qualitative", "review", "other", "unknown"]
         },
         "unit_of_analysis": { "type": "string", "minLength": 1 },
+        "parent_unit": { "type": "string", "minLength": 1 },
         "groups": {
           "type": "array",
           "items": { "$ref": "#/$defs/group" }
@@ -194,6 +196,11 @@
           "uniqueItems": true
         },
         "challenges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        },
+        "depends_on": {
           "type": "array",
           "items": { "$ref": "#/$defs/id" },
           "uniqueItems": true

@@ -39,7 +39,10 @@ Every card records:
   checked;
 - a figure-question plan.
 
-The built-in offline provider generates three scaffolds:
+The built-in offline provider generates three scaffolds. In v0.4, decisive-test
+text reuses the recorded seed process, connected prerequisite, selected competing
+explanation, target-engagement requirement, and rescue logic instead of emitting a
+domain-free validation sentence:
 
 1. `mechanistic-deepening`: closest intervention/rescue path from the current
    evidence boundary;

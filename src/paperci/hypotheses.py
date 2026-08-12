@@ -13,7 +13,7 @@ from paperci.findings import Severity
 from paperci.project import ProjectDocument, next_identifier
 
 HYPOTHESIS_PROVIDER_ID = "paperci.builtin.frontier-hypothesis"
-HYPOTHESIS_PROVIDER_VERSION = "1"
+HYPOTHESIS_PROVIDER_VERSION = "2"
 HYPOTHESIS_STRATEGIES = (
     "mechanistic-deepening",
     "cross-scale-bridge",
@@ -108,7 +108,7 @@ def hypothesize(
         )
 
     working = ProjectDocument(path=document.path, data=copy.deepcopy(document.data))
-    working.data["spec_version"] = "0.3"
+    working.data["spec_version"] = "0.4"
     hypotheses = working.data.setdefault("hypotheses", [])
     runs = working.data.setdefault("runs", [])
     if not isinstance(hypotheses, list) or not isinstance(runs, list):
@@ -320,7 +320,9 @@ def _build_hypothesis(
 ) -> dict[str, Any]:
     seed_id = str(seed["id"])
     anchor_claims = [seed_id]
-    companion = next((item for item in eligible if str(item.get("id")) != seed_id), None)
+    eligible_by_id = {str(item["id"]): item for item in eligible}
+    related = _claim_dependencies(seed, eligible_by_id)
+    companion = _strategy_companion(strategy, seed, related, eligible, evidence)
     if strategy in {"cross-scale-bridge", "paradigm-challenge"} and companion is not None:
         anchor_claims.append(str(companion["id"]))
     evidence_ids = list(
@@ -335,7 +337,21 @@ def _build_hypothesis(
     if not alternatives:
         alternatives = ["The observed pattern reflects a technical or compositional difference."]
     seed_text = str(seed.get("text", seed_id))
-    alternative = alternatives[0]
+    companion_text = (
+        str(companion.get("text", companion.get("id"))) if companion is not None else ""
+    )
+    alternative = _strategy_alternative(
+        strategy, alternatives, companion, evidence, fallback=alternatives[0]
+    )
+    alternatives = list(dict.fromkeys([*alternatives, alternative]))
+    focus_id = (
+        str(companion.get("id"))
+        if strategy == "paradigm-challenge" and companion is not None
+        else seed_id
+    )
+    focus_text = (
+        companion_text if strategy == "paradigm-challenge" and companion is not None else seed_text
+    )
     statements = {
         "mechanistic-deepening": (
             f"The mechanism proposed in {seed_id} ('{seed_text}') is a testable candidate: "
@@ -343,36 +359,49 @@ def _build_hypothesis(
             "the current evidence does not establish that mechanism."
         ),
         "cross-scale-bridge": (
-            f"The candidate process in {seed_id} may connect the anchored observations across "
-            "biological scales or contexts and thereby explain a broader phenotype."
+            f"The candidate process in {seed_id} ('{seed_text}') may connect to "
+            f"{str(companion.get('id')) if companion is not None else 'another scale'} "
+            f"('{companion_text}') and thereby explain a broader phenotype."
         ),
         "paradigm-challenge": (
             f"The competing explanation ('{alternative}') may account for the evidence anchored "
-            f"by {seed_id} better than its current leading interpretation."
+            f"by {focus_id} better than its current leading interpretation ('{focus_text}')."
         ),
     }
-    models = {
-        "mechanistic-deepening": "candidate direct mechanism",
-        "cross-scale-bridge": "cross-scale propagation model",
-        "paradigm-challenge": "competing process",
-    }
+    leading_model = f"leading interpretation: {focus_text}"
+    competing_model = f"competing explanation: {alternative}"
     proposed = statements[strategy]
     decisive_test = {
-        "design": _test_design(strategy, seed_id),
-        "distinguishes": [models[strategy], alternative],
+        "design": _test_design(
+            strategy,
+            seed_id,
+            seed_text,
+            str(companion.get("id")) if companion is not None else None,
+            companion_text,
+            alternative,
+            focus_id,
+            focus_text,
+        ),
+        "distinguishes": [leading_model, competing_model],
         "expected_outcomes": [
             {
-                "model": models[strategy],
-                "expected": "Perturbation changes the anchored outcome in the predicted direction and rescue restores it.",
+                "model": leading_model,
+                "expected": (
+                    f"Target-engaged perturbation of '{focus_text}' changes the anchored outcome "
+                    "in the predicted direction and an orthogonal rescue restores it."
+                ),
             },
             {
-                "model": alternative,
-                "expected": "The anchored outcome persists independently of the proposed mediator or follows the competing explanation.",
+                "model": competing_model,
+                "expected": (
+                    f"The anchored outcome follows '{alternative}' and is not selectively restored "
+                    f"by rescue of the process described in {seed_id}."
+                ),
             },
         ],
         "falsifier": (
-            "A well-powered, target-engaged perturbation with appropriate controls leaves the "
-            "anchored outcome unchanged while the competing explanation remains viable."
+            f"A well-powered, target-engaged perturbation of the process in {seed_id} leaves the "
+            f"anchored outcome unchanged while '{alternative}' remains viable."
         ),
         "feasibility": "medium" if strategy == "mechanistic-deepening" else "unknown",
         "expected_information_gain": "high",
@@ -413,8 +442,8 @@ def _build_hypothesis(
         ],
         "alternatives": alternatives,
         "predictions": [
-            "Perturbing the proposed process should alter the anchored outcome with target engagement.",
-            "A rescue or orthogonal intervention should reverse the perturbation-associated change.",
+            f"Perturbing the process '{focus_text}' should alter the anchored outcome with target engagement.",
+            f"A rescue specific to '{focus_text}' should reverse the perturbation-associated change.",
         ],
         "decisive_tests": [decisive_test],
         "evidence_upgrade_path": [
@@ -492,13 +521,141 @@ def _ambition_profile(strategy: str, anchor_count: int) -> dict[str, dict[str, s
     }
 
 
-def _test_design(strategy: str, seed_id: str) -> str:
-    prefix = {
-        "mechanistic-deepening": "Perturb the candidate mediator and perform rescue",
-        "cross-scale-bridge": "Perturb the candidate process in a matched multi-scale model",
-        "paradigm-challenge": "Intervene separately on the leading and competing processes",
-    }[strategy]
-    return f"{prefix}; quantify the pre-specified outcome anchored by {seed_id}."
+def _test_design(
+    strategy: str,
+    seed_id: str,
+    seed_text: str,
+    companion_id: str | None,
+    companion_text: str,
+    alternative: str,
+    focus_id: str,
+    focus_text: str,
+) -> str:
+    if strategy == "mechanistic-deepening":
+        return (
+            f"Perturb the process described by {seed_id} ('{seed_text}') with measured target "
+            "engagement; perform an orthogonal rescue and quantify the pre-specified anchored outcome."
+        )
+    if strategy == "cross-scale-bridge":
+        bridge = (
+            f"{companion_id} ('{companion_text}')"
+            if companion_id is not None
+            else "a matched scale"
+        )
+        return (
+            f"Test whether {seed_id} ('{seed_text}') depends on or propagates from {bridge}; "
+            f"perturb each level separately and distinguish this bridge from '{alternative}' "
+            "using matched readouts at both levels."
+        )
+    return (
+        f"Intervene separately on the leading process in {focus_id} ('{focus_text}') and on the "
+        f"competing process ('{alternative}'); include target engagement, rescue, and the same "
+        f"pre-specified outcome for both arms while retaining {seed_id} as the upstream anchor."
+    )
+
+
+def _claim_dependencies(
+    seed: dict[str, Any],
+    claims: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    ordered: list[dict[str, Any]] = []
+    visited: set[str] = set()
+
+    def visit(item: dict[str, Any]) -> None:
+        for dependency_id in _strings(item.get("depends_on")):
+            if dependency_id in visited or dependency_id not in claims:
+                continue
+            visited.add(dependency_id)
+            dependency = claims[dependency_id]
+            visit(dependency)
+            ordered.append(dependency)
+
+    visit(seed)
+    return ordered
+
+
+def _strategy_companion(
+    strategy: str,
+    seed: dict[str, Any],
+    related: list[dict[str, Any]],
+    eligible: list[dict[str, Any]],
+    evidence: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    if strategy == "cross-scale-bridge":
+        persistent = next(
+            (
+                item
+                for item in related
+                if any(
+                    marker in str(item.get("text", "")).casefold()
+                    for marker in ("persist", "memory state", "chromatin state")
+                )
+            ),
+            None,
+        )
+        if persistent is not None:
+            return persistent
+    if strategy == "paradigm-challenge":
+        bounded = next(
+            (item for item in reversed(related) if _outgrowth_boundary(item, evidence)),
+            None,
+        )
+        if bounded is not None:
+            return bounded
+    direct = next(
+        (
+            item
+            for dependency_id in _strings(seed.get("depends_on"))
+            if (item := next((c for c in related if str(c.get("id")) == dependency_id), None))
+            is not None
+        ),
+        None,
+    )
+    if direct is not None:
+        return direct
+    seed_id = str(seed.get("id"))
+    return next((item for item in eligible if str(item.get("id")) != seed_id), None)
+
+
+def _strategy_alternative(
+    strategy: str,
+    seed_alternatives: list[str],
+    companion: dict[str, Any] | None,
+    evidence: dict[str, dict[str, Any]],
+    *,
+    fallback: str,
+) -> str:
+    if strategy == "mechanistic-deepening":
+        return seed_alternatives[-1]
+    if strategy == "cross-scale-bridge" and companion is not None:
+        alternatives = _strings(companion.get("alternatives"))
+        if alternatives:
+            return alternatives[0]
+    if strategy == "paradigm-challenge" and companion is not None:
+        if _outgrowth_boundary(companion, evidence):
+            return "Prior exposure changes tumour-initiation frequency rather than post-initiation outgrowth."
+        return seed_alternatives[-1]
+    return fallback
+
+
+def _outgrowth_boundary(claim: dict[str, Any], evidence: dict[str, dict[str, Any]]) -> bool:
+    claim_text = str(claim.get("text", "")).casefold()
+    if not any(marker in claim_text for marker in ("outgrowth", "larger", "growth")):
+        return False
+    statements = " ".join(
+        str(evidence[evidence_id].get("statement", "")).casefold()
+        for evidence_id in _strings(claim.get("supports"))
+        if evidence_id in evidence
+    )
+    return any(
+        marker in statements
+        for marker in (
+            "did not have more macroscopic tumour",
+            "did not have more macroscopic tumor",
+            "no increase in tumour number",
+            "no increase in tumor number",
+        )
+    )
 
 
 def _seed_key(claim: dict[str, Any]) -> tuple[int, int, str]:

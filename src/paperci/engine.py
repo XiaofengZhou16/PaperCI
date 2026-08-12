@@ -29,6 +29,7 @@ MECHANISTIC_ROLES = {
     "structural",
     "temporal_intervention",
     "causal_identification",
+    "functional_perturbation",
 }
 
 
@@ -38,6 +39,7 @@ def validate_project(document: ProjectDocument, *, scientific: bool = False) -> 
     index, duplicate_findings = _build_index(document)
     findings.extend(duplicate_findings)
     findings.extend(_reference_findings(document, index))
+    findings.extend(_claim_dependency_findings(document, index))
     findings.extend(_provenance_findings(document))
     if scientific:
         findings.extend(_scientific_findings(document, index))
@@ -145,6 +147,8 @@ def _reference_findings(
                         require(
                             owner, reference, {"evidence"}, f"/claims/{offset}/{field}/{position}"
                         )
+            for position, reference in enumerate(_list(claim.get("depends_on"))):
+                require(owner, reference, {"claims"}, f"/claims/{offset}/depends_on/{position}")
 
     stories = document.data.get("stories", [])
     if isinstance(stories, list):
@@ -321,6 +325,52 @@ def _reference_findings(
     return findings
 
 
+def _claim_dependency_findings(
+    document: ProjectDocument,
+    index: dict[str, tuple[str, dict[str, Any]]],
+) -> list[Finding]:
+    claims = {
+        record_id: record
+        for record_id, (collection, record) in index.items()
+        if collection == "claims"
+    }
+    graph = {
+        claim_id: [
+            dependency for dependency in _list(claim.get("depends_on")) if dependency in claims
+        ]
+        for claim_id, claim in claims.items()
+    }
+    state: dict[str, int] = {}
+    stack: list[str] = []
+    cycle_nodes: set[str] = set()
+
+    def visit(claim_id: str) -> None:
+        state[claim_id] = 1
+        stack.append(claim_id)
+        for dependency in graph.get(claim_id, []):
+            dependency_state = state.get(dependency, 0)
+            if dependency_state == 0:
+                visit(dependency)
+            elif dependency_state == 1:
+                cycle_nodes.update(stack[stack.index(dependency) :])
+        stack.pop()
+        state[claim_id] = 2
+
+    for claim_id in graph:
+        if state.get(claim_id, 0) == 0:
+            visit(claim_id)
+    return [
+        Finding(
+            rule_id="PCI-CLAIM-001",
+            severity=Severity.ERROR,
+            target=claim_id,
+            message="Claim dependency graph contains a cycle.",
+            remediation="Remove or redirect a depends_on edge so evidence-to-claim reasoning is acyclic.",
+        )
+        for claim_id in sorted(cycle_nodes)
+    ]
+
+
 def _provenance_findings(document: ProjectDocument) -> list[Finding]:
     findings: list[Finding] = []
     reviews = _dicts(document.data.get("reviews"))
@@ -461,6 +511,24 @@ def _scientific_findings(
                         remediation="Record the independent unit and n for every compared group.",
                     )
                 )
+            unit = str(design.get("unit_of_analysis", "")).casefold()
+            if "_nested_within_" in unit and (
+                not design.get("parent_unit") or any("clusters" not in group for group in groups)
+            ):
+                findings.append(
+                    Finding(
+                        rule_id="PCI-STAT-003",
+                        severity=Severity.WARNING,
+                        target=target,
+                        message=(
+                            "Nested observations lack an explicit parent unit or per-group cluster counts."
+                        ),
+                        remediation=(
+                            "Record design.parent_unit and group.clusters; analyze independent parent "
+                            "units or use a model that accounts for clustering."
+                        ),
+                    )
+                )
 
     claims = document.data.get("claims", [])
     if isinstance(claims, list):
@@ -468,6 +536,27 @@ def _scientific_findings(
             if not isinstance(claim, dict):
                 continue
             target = str(claim.get("id", f"claims[{offset}]"))
+            supports_set = _string_set(claim.get("supports"))
+            challenges_set = _string_set(claim.get("challenges"))
+            overlap = sorted(supports_set & challenges_set)
+            if overlap:
+                findings.append(
+                    Finding(
+                        rule_id="PCI-REL-001",
+                        severity=Severity.ERROR,
+                        target=target,
+                        evidence_ids=tuple(overlap),
+                        message=(
+                            "The same evidence is linked as both support and challenge: "
+                            + ", ".join(overlap)
+                            + "."
+                        ),
+                        remediation=(
+                            "Resolve the evidence relationship, split mixed results into bounded "
+                            "evidence records, or represent the claim as disputed."
+                        ),
+                    )
+                )
             if claim.get("status") in {"prohibited", "superseded"}:
                 continue
             supports = [
@@ -499,6 +588,7 @@ def _scientific_findings(
                         )
                     )
             findings.extend(_scope_findings(target, claim, supports, evidence_ids))
+            findings.extend(_semantic_boundary_findings(target, claim, supports, evidence_ids))
             if claim.get("type") in CAUSAL_CLAIM_TYPES and supports:
                 identified = any(
                     _has_role(item, "causal_identification")
@@ -521,7 +611,7 @@ def _scientific_findings(
                         )
                     )
             if claim.get("type") == "mechanism" and supports:
-                if not any(_has_any_role(item, MECHANISTIC_ROLES) for item in supports):
+                if not any(_supports_mechanism(claim, item) for item in supports):
                     findings.append(
                         Finding(
                             rule_id="PCI-MECH-001",
@@ -869,6 +959,105 @@ def _scope_findings(
     return findings
 
 
+def _semantic_boundary_findings(
+    target: str,
+    claim: dict[str, Any],
+    supports: list[dict[str, Any]],
+    evidence_ids: tuple[str, ...],
+) -> list[Finding]:
+    """Catch a few explicit category errors; this is not unrestricted NLP inference."""
+    if not supports:
+        return []
+    claim_text = str(claim.get("text", "")).casefold()
+    support_texts = [str(item.get("statement", "")).casefold() for item in supports]
+    joined = " ".join(support_texts)
+    findings: list[Finding] = []
+
+    organismal_transmission = (
+        "offspring",
+        "between animals",
+        "transgenerational",
+        "intergenerational",
+        "germline transmission",
+    )
+    cellular_inheritance = (
+        "cell division",
+        "cell divisions",
+        "clonal",
+        "clone-label",
+        "organoid",
+    )
+    support_has_organismal_bridge = any(
+        marker in joined for marker in ("breeding", "offspring", "germline", "cross-foster")
+    )
+    if (
+        any(marker in claim_text for marker in organismal_transmission)
+        and any(marker in joined for marker in cellular_inheritance)
+        and any(_has_role(item, "lineage_tracing") for item in supports)
+        and not support_has_organismal_bridge
+    ):
+        findings.append(
+            Finding(
+                rule_id="PCI-SEM-001",
+                severity=Severity.ERROR,
+                target=target,
+                evidence_ids=evidence_ids,
+                message=(
+                    "Cellular or clonal inheritance is being generalized to organismal or "
+                    "intergenerational transmission without bridging evidence."
+                ),
+                remediation=(
+                    "Narrow the claim to mitotic or clonal inheritance, or add an organism-level "
+                    "transmission design."
+                ),
+            )
+        )
+
+    initiation_claim = any(
+        marker in claim_text
+        for marker in (
+            "tumour-initiation",
+            "tumor-initiation",
+            "initiation frequency",
+            "frequency of tumour",
+            "frequency of tumor",
+            "tumour incidence",
+            "tumor incidence",
+        )
+    )
+    explicit_count_boundary = any(
+        marker in joined
+        for marker in (
+            "did not have more macroscopic tumour",
+            "did not have more macroscopic tumor",
+            "did not increase tumour number",
+            "did not increase tumor number",
+            "no increase in tumour number",
+            "no increase in tumor number",
+            "unchanged tumour number",
+            "unchanged tumor number",
+        )
+    )
+    if initiation_claim and explicit_count_boundary:
+        findings.append(
+            Finding(
+                rule_id="PCI-SEM-001",
+                severity=Severity.ERROR,
+                target=target,
+                evidence_ids=evidence_ids,
+                message=(
+                    "Tumour outgrowth or size evidence with an explicit null count result does not "
+                    "support increased tumour-initiation frequency."
+                ),
+                remediation=(
+                    "Narrow the claim to post-initiation growth, or add an initiation-count design "
+                    "with the independent experimental unit recorded."
+                ),
+            )
+        )
+    return findings
+
+
 def _dicts(value: Any) -> list[dict[str, Any]]:
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 
@@ -966,3 +1155,24 @@ def _has_role(evidence: dict[str, Any], role: str) -> bool:
 
 def _has_any_role(evidence: dict[str, Any], roles: set[str]) -> bool:
     return bool(_evidence_roles(evidence) & roles)
+
+
+def _supports_mechanism(claim: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    roles = _evidence_roles(evidence)
+    if roles & MECHANISTIC_ROLES:
+        return True
+    claim_text = str(claim.get("text", "")).casefold()
+    contextual_roles = {
+        "direct_occupancy": ("direct", "bind", "occupancy"),
+        "lineage_tracing": ("clon", "lineage", "inherit", "propagat", "cell-intrinsic"),
+        "state_erasure_test": ("eras", "reset", "memory state"),
+        "washout_persistence": ("persist", "washout", "memory"),
+    }
+    if any(
+        role in roles and any(marker in claim_text for marker in markers)
+        for role, markers in contextual_roles.items()
+    ):
+        return True
+    return "target_engagement" in roles and bool(
+        roles & {"perturbation", "functional_perturbation", "rescue"}
+    )

@@ -107,7 +107,7 @@ def load_schema() -> dict[str, Any]:
 
 def empty_project(project_id: str, title: str, mode: str = "sketch") -> dict[str, Any]:
     return {
-        "spec_version": "0.3",
+        "spec_version": "0.4",
         "project": {
             "id": project_id,
             "title": title,

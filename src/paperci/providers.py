@@ -6,7 +6,7 @@ from typing import Any, Protocol
 from paperci.findings import Finding, Severity
 
 BUILTIN_PROVIDER_ID = "paperci.builtin.deterministic"
-BUILTIN_PROVIDER_VERSION = "1"
+BUILTIN_PROVIDER_VERSION = "2"
 DEFAULT_STRATEGIES = (
     "evidence-conservative",
     "high-risk-hypothesis",
@@ -74,6 +74,10 @@ class DeterministicStoryProvider:
         ]
         if not eligible:
             return ProviderResult((), ("No supported candidate claims are available.",))
+        eligible_ids = {str(claim["id"]) for claim in eligible}
+
+        def path_for(claim: dict[str, Any]) -> list[dict[str, Any]]:
+            return _dependency_path(claim, claim_by_id, eligible_ids)
 
         if context.central_claim:
             requested = claim_by_id.get(context.central_claim)
@@ -86,8 +90,15 @@ class DeterministicStoryProvider:
                 )
             conservative = requested
         else:
-            passing = [claim for claim in eligible if str(claim["id"]) not in error_rules]
-            conservative = max(passing or eligible, key=_conservative_key)
+            passing = [
+                claim
+                for claim in eligible
+                if all(str(item["id"]) not in error_rules for item in path_for(claim))
+            ]
+            conservative = max(
+                passing or eligible,
+                key=lambda claim: _conservative_key(claim, len(path_for(claim))),
+            )
 
         risky_candidates = [claim for claim in eligible if claim is not conservative]
         risky = max(risky_candidates or eligible, key=lambda claim: _risk_key(claim, error_rules))
@@ -102,12 +113,18 @@ class DeterministicStoryProvider:
         )
 
         selections: dict[str, tuple[dict[str, Any], list[dict[str, Any]]]] = {
-            "evidence-conservative": (conservative, [conservative]),
+            "evidence-conservative": (conservative, path_for(conservative)),
         }
         if risky is not conservative:
-            selections["high-risk-hypothesis"] = (risky, [conservative, risky])
+            selections["high-risk-hypothesis"] = (
+                risky,
+                _unique_claims([*path_for(conservative), *path_for(risky)]),
+            )
         if next_claim is not None:
-            selections["minimum-gap"] = (conservative, [conservative, next_claim])
+            selections["minimum-gap"] = (
+                conservative,
+                _unique_claims([*path_for(conservative), *path_for(next_claim)]),
+            )
 
         stories: list[dict[str, Any]] = []
         notes: list[str] = []
@@ -158,8 +175,9 @@ def _claim_rules(
     return result
 
 
-def _conservative_key(claim: dict[str, Any]) -> tuple[int, int, str]:
+def _conservative_key(claim: dict[str, Any], dependency_span: int) -> tuple[int, int, int, str]:
     return (
+        dependency_span,
         len(_string_list(claim.get("supports"))),
         -CLAIM_BURDEN.get(str(claim.get("type")), -1),
         str(claim.get("id")),
@@ -320,6 +338,30 @@ def _unique_claims(claims: list[dict[str, Any]]) -> list[dict[str, Any]]:
             seen.add(claim_id)
             result.append(claim)
     return result
+
+
+def _dependency_path(
+    claim: dict[str, Any],
+    claim_by_id: dict[str, dict[str, Any]],
+    eligible_ids: set[str],
+) -> list[dict[str, Any]]:
+    """Return eligible prerequisites before the selected claim in stable topological order."""
+    ordered: list[dict[str, Any]] = []
+    visited: set[str] = set()
+
+    def visit(item: dict[str, Any]) -> None:
+        item_id = str(item["id"])
+        if item_id in visited:
+            return
+        visited.add(item_id)
+        for dependency_id in _string_list(item.get("depends_on")):
+            dependency = claim_by_id.get(dependency_id)
+            if dependency is not None and dependency_id in eligible_ids:
+                visit(dependency)
+        ordered.append(item)
+
+    visit(claim)
+    return ordered
 
 
 def _string_list(value: Any) -> list[str]:

@@ -30,7 +30,7 @@ files / notes / pipelines
 
 ## Core packages
 
-The v0.3 implementation is Python 3.11+ and keeps the initial core deliberately
+The v0.4 implementation is Python 3.11+ and keeps the initial core deliberately
 small:
 
 ```text
@@ -84,7 +84,7 @@ The combined JSON Schema is in `spec/paperci.schema.json`. Public releases shoul
 publish immutable schema URIs such as:
 
 ```text
-https://paperci.org/spec/v0.3/project.schema.json
+https://paperci.org/spec/v0.4/project.schema.json
 ```
 
 ## Validation pipeline
