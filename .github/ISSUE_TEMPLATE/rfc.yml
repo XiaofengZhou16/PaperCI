@@ -1,0 +1,48 @@
+name: Request for comments
+description: Propose a specification, field-semantics, promotion, or plugin-contract change.
+title: "[RFC]: "
+labels: [rfc]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Open an RFC before implementing changes to ProjectSpec semantics or plugin contracts. Use synthetic examples only.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed contract
+      description: Define fields, semantics, ownership, and validation behaviour precisely.
+    validations:
+      required: true
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: Realistic use cases
+      description: Provide at least two synthetic or redistributable examples.
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and migration
+      description: Explain versioning, old-project behaviour, and any required migration.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Scientific, privacy, and maintenance risks
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and rejected designs
+    validations:
+      required: true

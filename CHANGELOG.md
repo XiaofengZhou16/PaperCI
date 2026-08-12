@@ -4,6 +4,19 @@ All notable changes to PaperCI will be documented here. The project follows
 Semantic Versioning for the Python package; the public data specification has its
 own version declared by `spec_version`.
 
+## 0.3.0a2 — 2026-08-13
+
+Adoption-readiness pre-release:
+
+- reproducible PyPI publishing through a dedicated Trusted Publishing workflow;
+- release-tag and package-version consistency checks before publication;
+- wheel and source-distribution metadata checks and clean-install smoke tests;
+- PyPI-first installation instructions for the synthetic pilot;
+- version-neutral bug and first-run forms plus feature-request and RFC entry points;
+- private vulnerability-reporting guidance aligned with the enabled repository setting.
+
+This release does not change ProjectSpec semantics or add scientific rules.
+
 ## 0.3.0a1 — 2026-08-13
 
 Dual-track evidence and frontier-hypothesis baseline:

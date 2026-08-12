@@ -1,6 +1,7 @@
 name: First-run feedback
 description: Report your experience with the synthetic PaperCI demo.
 title: "[First run]: "
+labels: [first-run]
 body:
   - type: markdown
     attributes:
@@ -10,7 +11,8 @@ body:
     id: version
     attributes:
       label: PaperCI version
-      placeholder: 0.3.0a1
+      description: Paste the output of `paperci --version`.
+      placeholder: paperci X.Y.Z
     validations:
       required: true
   - type: input
@@ -25,6 +27,7 @@ body:
     attributes:
       label: Installation method
       options:
+        - PyPI pre-release
         - GitHub release wheel
         - Source checkout
         - Other
