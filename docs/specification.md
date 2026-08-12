@@ -18,12 +18,13 @@ events, generation-run manifests, and optional extensions. The top-level `spec_v
 selects the interpretation of all fields. Project `mode` describes the expected
 workflow; it is not a shortcut that promotes every record in the project.
 
-The current authoring version is `0.3`. The v0.3 validator also reads `0.1` and
-`0.2` projects. A mutating `paperci propose` or `paperci hypothesize` run upgrades
-its output to `0.3`; the new version adds the separate `hypotheses` collection.
+The current authoring version is `0.4`. The v0.4 validator also reads `0.1`–`0.3`
+projects. A mutating `paperci propose` or `paperci hypothesize` run upgrades its
+output to `0.4`; the new version adds explicit claim dependencies and nested-design
+metadata. ProjectSpec `0.3` introduced the separate `hypotheses` collection.
 
 ```yaml
-spec_version: "0.3"
+spec_version: "0.4"
 project:
   id: gout-cvd-story
   title: Trained myelopoiesis and plaque inflammation
@@ -59,11 +60,14 @@ IDs are stable within a project and use prefixes by convention: `E`, `C`, `S`,
   design:
     family: experiment
     unit_of_analysis: mouse
+    parent_unit: cage
     groups:
       - id: control
         n: 5
+        clusters: 3
       - id: hfd
         n: 5
+        clusters: 3
     randomized: unknown
     blinded: unknown
   result:
@@ -88,6 +92,12 @@ IDs are stable within a project and use prefixes by convention: `E`, `C`, `S`,
 
 An evidence statement describes the result and must not quietly contain a stronger
 causal or mechanistic conclusion than the design permits.
+
+`parent_unit` and `clusters` are used only when the recorded observations are nested.
+For example, if `unit_of_analysis` is `tumour_nested_within_mouse`, `parent_unit`
+should be `mouse`, group `n` may record tumours, and `clusters` records the number of
+independent mice. The fields expose the hierarchy; they do not certify that the
+statistical model handled it correctly.
 
 ### Evidence kinds
 
@@ -118,6 +128,7 @@ causal or mechanistic conclusion than the design permits.
   status: conditional
   supports: [E001, E002]
   challenges: [E009]
+  depends_on: [C000]
   assumptions:
     - Batch effects do not explain the observed difference.
   alternatives:
@@ -154,6 +165,11 @@ Ordered roughly by increasing evidential burden:
 
 Strength and type are separate. A verified descriptive result does not automatically
 justify an `establishes` mechanism claim.
+
+`depends_on` records scientific prerequisites, not chronology or citation order. The
+graph must be acyclic and every referenced claim must exist. Story providers traverse
+prerequisites before a downstream central claim, which makes long reasoning chains
+explicit and reviewable.
 
 ### Claim decision status
 

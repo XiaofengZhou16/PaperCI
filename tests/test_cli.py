@@ -49,7 +49,7 @@ def test_init_add_validate_lint_and_report(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     project = yaml.safe_load(project_file.read_text(encoding="utf-8"))
-    assert project["spec_version"] == "0.3"
+    assert project["spec_version"] == "0.4"
     assert project["evidence"][0]["id"] == "E001"
     assert project["evidence"][0]["status"] == "draft"
 
@@ -154,7 +154,7 @@ def test_demo_creates_complete_offline_project_and_refuses_overwrite(tmp_path: P
     assert (destination / "results" / "motifs.tsv").is_file()
     assert report_file.is_file()
     project = yaml.safe_load(project_file.read_text(encoding="utf-8"))
-    assert project["spec_version"] == "0.3"
+    assert project["spec_version"] == "0.4"
     assert [story["id"] for story in project["stories"]] == ["S001", "S002", "S003"]
     assert project["runs"][0]["output_ids"] == ["S001", "S002", "S003"]
     assert [item["id"] for item in project["hypotheses"]] == ["H001", "H002", "H003"]
@@ -202,6 +202,60 @@ def test_claim_rejects_unknown_evidence(tmp_path: Path) -> None:
     )
     assert result.exit_code == 2
     assert "Unknown evidence ID(s): E999" in result.output
+
+
+def test_cli_records_nested_units_and_claim_dependencies(tmp_path: Path) -> None:
+    assert runner.invoke(app, ["init", str(tmp_path), "--id", "reasoning-graph"]).exit_code == 0
+    result = runner.invoke(
+        app,
+        [
+            "add",
+            str(tmp_path),
+            "--statement",
+            "Tumours were measured within mice.",
+            "--source",
+            "notes://nested",
+            "--unit-of-analysis",
+            "tumour_nested_within_mouse",
+            "--parent-unit",
+            "mouse",
+            "--group",
+            "control=88",
+            "--cluster",
+            "control=7",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    first = runner.invoke(
+        app,
+        [
+            "claim",
+            str(tmp_path),
+            "--text",
+            "Tumours showed bounded outgrowth.",
+            "--support",
+            "E001",
+        ],
+    )
+    assert first.exit_code == 0, first.output
+    second = runner.invoke(
+        app,
+        [
+            "claim",
+            str(tmp_path),
+            "--text",
+            "The outgrowth follows the recorded prerequisite.",
+            "--support",
+            "E001",
+            "--depends-on",
+            "C001",
+        ],
+    )
+    assert second.exit_code == 0, second.output
+    project = yaml.safe_load((tmp_path / "paperci.yaml").read_text(encoding="utf-8"))
+    assert project["evidence"][0]["design"]["parent_unit"] == "mouse"
+    assert project["evidence"][0]["design"]["groups"][0]["clusters"] == 7
+    assert project["claims"][1]["depends_on"] == ["C001"]
 
 
 def test_propose_dry_run_does_not_write(tmp_path: Path) -> None:

@@ -176,10 +176,20 @@ def add_command(
         "--unit-of-analysis",
         help="Independent unit, for example mouse or participant.",
     ),
+    parent_unit: str | None = typer.Option(
+        None,
+        "--parent-unit",
+        help="Parent cluster for nested observations, for example mouse.",
+    ),
     group: list[str] | None = typer.Option(
         None,
         "--group",
         help="Group and n as NAME=N; repeat for multiple groups.",
+    ),
+    cluster: list[str] | None = typer.Option(
+        None,
+        "--cluster",
+        help="Independent cluster count as GROUP=N; repeat for nested groups.",
     ),
 ) -> None:
     """Append one draft evidence card; no model or network is used."""
@@ -217,10 +227,21 @@ def add_command(
         "source": source_record,
     }
     parsed_groups = _parse_groups(group or [])
-    if unit_of_analysis or parsed_groups:
+    cluster_counts = _parse_cluster_counts(cluster or [])
+    group_ids = {str(item["id"]) for item in parsed_groups}
+    unknown_clusters = sorted(set(cluster_counts) - group_ids)
+    if unknown_clusters:
+        _fail(f"Cluster count has no matching --group: {', '.join(unknown_clusters)}")
+    for parsed_group in parsed_groups:
+        group_id = str(parsed_group["id"])
+        if group_id in cluster_counts:
+            parsed_group["clusters"] = cluster_counts[group_id]
+    if unit_of_analysis or parent_unit or parsed_groups:
         design: dict[str, object] = {"family": "unknown"}
         if unit_of_analysis:
             design["unit_of_analysis"] = unit_of_analysis
+        if parent_unit:
+            design["parent_unit"] = parent_unit
         if parsed_groups:
             design["groups"] = parsed_groups
         record["design"] = design
@@ -247,6 +268,11 @@ def claim_command(
         None,
         "--challenge",
         help="Challenging evidence ID; repeat for multiple records.",
+    ),
+    depends_on: list[str] | None = typer.Option(
+        None,
+        "--depends-on",
+        help="Prerequisite claim ID; repeat to encode the reasoning graph.",
     ),
     assumption: list[str] | None = typer.Option(
         None,
@@ -310,6 +336,15 @@ def claim_command(
         for item in claims
     ):
         _fail("An active claim with identical text already exists.")
+    claim_ids = {
+        str(item.get("id"))
+        for item in claims
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    dependencies = _unique_strings(depends_on or [])
+    unknown_dependencies = sorted(set(dependencies) - claim_ids)
+    if unknown_dependencies:
+        _fail(f"Unknown prerequisite claim ID(s): {', '.join(unknown_dependencies)}")
     parsed_scope = _parse_scope(scope or [])
     record: dict[str, object] = {
         "id": next_identifier(claims, "C"),
@@ -319,6 +354,7 @@ def claim_command(
         "status": "candidate",
         "supports": supports,
         "challenges": challenges,
+        "depends_on": dependencies,
         "assumptions": _unique_strings(assumption or []),
         "alternatives": _unique_strings(alternative or []),
     }
@@ -419,7 +455,7 @@ def hypothesize_command(
     provider_id: str = typer.Option(
         "builtin",
         "--provider",
-        help="Provider ID; v0.3 includes the offline deterministic provider.",
+        help="Provider ID; v0.4 includes the offline deterministic provider.",
     ),
     seed_claim: str | None = typer.Option(
         None, "--seed-claim", help="Supported claim to anchor all generated hypotheses."
@@ -641,6 +677,23 @@ def _parse_groups(values: list[str]) -> list[dict[str, object]]:
         if not name or n < 0:
             _fail(f"Invalid --group {value!r}; name must be nonempty and N nonnegative.")
         result.append({"id": _slug(name), "n": n})
+    return result
+
+
+def _parse_cluster_counts(values: list[str]) -> dict[str, int]:
+    result: dict[str, int] = {}
+    for value in values:
+        if "=" not in value:
+            _fail(f"Invalid --cluster {value!r}; expected GROUP=N.")
+        name, raw_n = value.rsplit("=", 1)
+        group_id = _slug(name)
+        try:
+            count = int(raw_n)
+        except ValueError:
+            _fail(f"Invalid cluster count in {value!r}; N must be an integer.")
+        if not name or count < 1:
+            _fail(f"Invalid --cluster {value!r}; group must be nonempty and N positive.")
+        result[group_id] = count
     return result
 
 

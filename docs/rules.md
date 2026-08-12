@@ -18,7 +18,7 @@ Severity means:
 Review decisions are append-only events with a reason. The current core retains
 findings instead of silently suppressing them.
 
-## Current core rules (ProjectSpec 0.3)
+## Current core rules (ProjectSpec 0.4)
 
 ### `PCI-REF-001` — dangling reference
 
@@ -78,6 +78,15 @@ Difference, association, predictive, causal, mediation, and mechanism claims sho
 link to an effect estimate and uncertainty where that representation is meaningful.
 A p-value alone does not express scientific magnitude.
 
+### `PCI-STAT-003` — nested outcomes lack cluster metadata
+
+**Default:** warning.
+
+When `unit_of_analysis` explicitly declares `_nested_within_`, the design must name
+the `parent_unit` and each group must record its number of independent `clusters`.
+This exposes potential pseudoreplication without inferring whether a particular
+mixed model, GEE, or cluster-level analysis is adequate.
+
 ### `PCI-SCOPE-001` — claim exceeds evidence scope
 
 **Default:** error for explicit conflicts; warning for missing scope.
@@ -100,7 +109,40 @@ adjusted regression, or biological plausibility alone is insufficient.
 
 A mechanism claim cannot rely exclusively on observational difference, correlation,
 enrichment, prediction, or colocalization. Domain packs define acceptable combinations
-of perturbation, temporal, rescue, binding, structural, and orthogonal evidence.
+of perturbation, temporal, rescue, binding, structural, lineage-tracing, and
+orthogonal evidence. The core recognizes explicit roles including
+`lineage_tracing`, `washout_persistence`, `state_erasure_test`, `direct_occupancy`,
+`functional_perturbation`, and `target_engagement`; a role never expands the claim
+beyond the recorded biological scale. Context-specific roles pass only compatible
+claim language—for example, lineage tracing can support clonal propagation but does
+not unlock an unrelated direct-binding claim. `target_engagement` alone is also
+insufficient without perturbation, functional perturbation, or rescue.
+
+### `PCI-REL-001` — evidence is both support and challenge
+
+**Default:** error.
+
+One evidence ID cannot simultaneously appear in a claim's `supports` and
+`challenges` lists. A genuinely mixed result should be split into bounded evidence
+records or the relationship should be resolved explicitly; silently counting it in
+both directions makes downstream gates indeterminate.
+
+### `PCI-SEM-001` — explicit semantic category boundary crossed
+
+**Default:** error.
+
+The v0.4 core implements two conservative, benchmark-derived contrasts: cellular or
+clonal inheritance is not organismal/intergenerational transmission, and tumour
+outgrowth with an explicit null tumour-count result is not increased initiation
+frequency. This is a small deterministic vocabulary, not general natural-language
+entailment. New contrasts require adjacent passing and failing fixtures.
+
+### `PCI-CLAIM-001` — cyclic claim dependencies
+
+**Default:** error, no override.
+
+`depends_on` must form a directed acyclic graph. A cycle prevents a stable ordering
+of premises and conclusions and cannot be used to justify a generated story.
 
 ### `PCI-CONTRA-001` — material challenging evidence is omitted from the story
 

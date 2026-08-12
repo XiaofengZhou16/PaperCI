@@ -51,6 +51,11 @@ def test_previous_spec_version_remains_readable() -> None:
     errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(project))
     assert errors == []
 
+    project = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    project["spec_version"] = "0.3"
+    errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(project))
+    assert errors == []
+
 
 def test_package_version_has_single_release_value() -> None:
     metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -156,7 +161,7 @@ def test_deterministic_proposal_is_bounded_idempotent_and_supersedable() -> None
     provider = DeterministicStoryProvider()
 
     first = propose_stories(document, provider, arcs=3)
-    assert first.document.data["spec_version"] == "0.3"
+    assert first.document.data["spec_version"] == "0.4"
     assert first.document.data["hypotheses"] == []
     assert len(first.stories) == 3
     assert first.reused is False
@@ -302,7 +307,7 @@ def test_hypotheses_are_bounded_falsifiable_idempotent_and_supersedable() -> Non
     document = ProjectDocument(path=EXAMPLE, data=data)
 
     first = hypothesize(document, count=3)
-    assert first.document.data["spec_version"] == "0.3"
+    assert first.document.data["spec_version"] == "0.4"
     assert len(first.hypotheses) == 3
     assert [item["strategy"] for item in first.hypotheses] == [
         "mechanistic-deepening",

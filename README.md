@@ -58,7 +58,7 @@ $ paperci add demo --statement "Target expression was higher after exposure." \
 $ paperci claim demo --text "Exposure is associated with higher target expression." \
     --type association --strength supports --support E001
 $ paperci claim demo --text "Exposure directly activates the target mechanism." \
-    --type mechanism --strength demonstrates --support E001
+    --type mechanism --strength demonstrates --support E001 --depends-on C001
 $ paperci propose demo --arcs 3
 $ paperci lint demo --fail-on never
 $ paperci compare demo
@@ -90,6 +90,12 @@ The report contains:
 - a figure-question sequence linked to existing evidence and claims;
 - alternative explanations that remain open;
 - explicit gaps, run provenance, and human-review boundaries.
+
+ProjectSpec `0.4` also records claim prerequisites with `depends_on`. The built-in
+provider follows this acyclic graph to recover long story chains instead of selecting
+only isolated claims. Nested outcomes can record `parent_unit` and per-group
+`clusters`, so tumour-, organoid-, well-, or cell-level counts do not silently stand
+in for independent animals or donors.
 
 ## Three adoption modes
 
@@ -165,10 +171,13 @@ code-review system. CI may use `--fail-on error`; exploratory work may use
 
 ## Project status
 
-**Pre-alpha / v0.3.0a2.** The offline CLI separates evidence-bound claims from
-frontier hypotheses. Hypothesis novelty remains `unchecked` unless a dated,
-traceable literature assessment is recorded. No output should be used in a
-submission or experimental decision without independent scientific review.
+**Pre-alpha / v0.4.0a1.** The offline CLI separates evidence-bound claims from
+frontier hypotheses, validates explicit reasoning dependencies, and includes the
+first benchmark-derived semantic and nested-unit rules. Hypothesis novelty remains
+`unchecked` unless a dated, traceable literature assessment is recorded. The perfect
+score on the single constructed Nature fixture is a regression result, not a general
+performance estimate. No output should be used in a submission or experimental
+decision without independent scientific review.
 
 ## License
 

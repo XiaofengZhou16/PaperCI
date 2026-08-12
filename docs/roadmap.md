@@ -112,7 +112,8 @@ Exit criteria:
 **Goal:** turn evidence boundaries into ambitious, falsifiable research directions
 without confusing them with current conclusions.
 
-**Status:** offline ProjectSpec `0.3` baseline implemented in `v0.3.0a1`.
+**Status:** offline ProjectSpec `0.4` reasoning-graph baseline implemented in
+`v0.4.0a1`; broader blind, multi-domain evaluation remains open.
 
 Commands:
 

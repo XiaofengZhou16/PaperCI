@@ -4,6 +4,26 @@ All notable changes to PaperCI will be documented here. The project follows
 Semantic Versioning for the Python package; the public data specification has its
 own version declared by `spec_version`.
 
+## 0.4.0a1 — 2026-08-13
+
+Nature benchmark-driven reasoning upgrade:
+
+- ProjectSpec `0.4` adds acyclic `claim.depends_on` links and explicit nested-design
+  fields (`design.parent_unit` and `group.clusters`), while retaining read
+  compatibility for `0.1`–`0.3` projects;
+- `PCI-REL-001` rejects an evidence record linked as both support and challenge;
+- `PCI-SEM-001` blocks the tested cellular-to-organismal inheritance and
+  tumour-outgrowth-to-initiation category errors;
+- `PCI-STAT-003` exposes missing parent units and cluster counts for nested outcomes;
+- lineage tracing and five additional mechanistic evidence roles no longer fail the
+  mechanism gate solely because the core vocabulary was incomplete;
+- the deterministic story provider follows claim dependencies in topological order
+  and can emit long, auditable evidence-to-mechanism chains;
+- frontier hypothesis tests now name the recorded process, connected claim, selected
+  competing explanation, target engagement, and rescue logic;
+- nine core regression tests reproduce the failures observed in the Nagaraja et al.
+  Nature benchmark.
+
 ## 0.3.0a2 — 2026-08-13
 
 Adoption-readiness pre-release:

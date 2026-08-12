@@ -1,4 +1,4 @@
-spec_version: "0.3"
+spec_version: "0.4"
 
 project:
   id: minimal-mechanism-example
@@ -75,6 +75,7 @@ claims:
     status: candidate
     supports: [E002]
     challenges: []
+    depends_on: [C001]
     assumptions:
       - Motif enrichment reflects direct occupancy and functional regulation.
     alternatives:
