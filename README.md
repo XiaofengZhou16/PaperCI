@@ -24,7 +24,7 @@ claim rules, provenance, evaluation cases, and human review workflow.
 
 ## Try it in two minutes
 
-PaperCI is pre-alpha. The source tree is preparing `v0.4.0a2`; install the latest
+PaperCI is pre-alpha. The source tree is preparing `v0.5.0a1`; install the latest
 verified GitHub artifact (`v0.4.0a1`) to try the current released behavior, then
 create a complete synthetic project without an API key or network call. PyPI
 publication is currently blocked by the repository's protected deployment rules;
@@ -57,6 +57,7 @@ From a source checkout installed with `python -m pip install -e .`:
 
 ```text
 $ paperci init demo --id demo-study --title "Demo study"
+$ paperci import-table demo results.csv --statement-column finding --unit-column unit
 $ paperci add demo --statement "Target expression was higher after exposure." \
     --source notes://pilot --locator result-1
 $ paperci claim demo --text "Exposure is associated with higher target expression." \
@@ -68,6 +69,7 @@ $ paperci lint demo --fail-on never
 $ paperci compare demo
 $ paperci hypothesize demo --count 3
 $ paperci compare-hypotheses demo
+$ paperci explain PCI-MECH-001
 $ paperci report demo -o demo/paperci-report.md
 ```
 
@@ -139,6 +141,8 @@ model is not a prerequisite for receiving value.
 - [Open specification](docs/specification.md)
 - [Core lint rules](docs/rules.md)
 - [Story evaluation](docs/evaluation.md)
+- [Table import](docs/table-import.md)
+- [Mechanistic-biology profile](docs/mechanistic-biology-profile.md)
 - [Ecosystem and differentiation](docs/ecosystem.md)
 - [MVP and roadmap](docs/roadmap.md)
 - [Release process](docs/releasing.md)
@@ -158,12 +162,14 @@ foundation-model adapters remain future work.
 |---|---|---|
 | `paperci demo` | Create and run a complete synthetic example | Never |
 | `paperci init` | Create a readable `paperci.yaml` | Never |
+| `paperci import-table` | Import explicitly mapped rows as draft, unverified evidence | Never |
 | `paperci add` | Add a draft evidence card | Never |
 | `paperci claim` | Add an evidence-linked candidate claim | Never |
 | `paperci propose` | Generate bounded candidate arcs with the built-in provider | Never |
 | `paperci compare` | Compare active arcs by gates and coverage signals | Never |
 | `paperci hypothesize` | Generate evidence-anchored, falsifiable frontier hypotheses | Never |
 | `paperci compare-hypotheses` | Compare ambition dimensions without a journal score | Never |
+| `paperci explain` | Explain a rule's trigger, rationale, limits, and remediation | Never |
 | `paperci validate` | Check schema, references, sources, hashes, and promotion | Never |
 | `paperci lint` | Apply deterministic scientific-story rules | Never |
 | `paperci report` | Render a Markdown decision report | Never |
@@ -175,7 +181,7 @@ code-review system. CI may use `--fail-on error`; exploratory work may use
 
 ## Project status
 
-**Pre-alpha / v0.4.0a2 candidate.** The offline CLI separates evidence-bound claims from
+**Pre-alpha / v0.5.0a1 candidate.** The offline CLI separates evidence-bound claims from
 frontier hypotheses, validates explicit reasoning dependencies, and includes the
 first benchmark-derived semantic and nested-unit rules. Hypothesis novelty remains
 `unchecked` unless a dated, traceable literature assessment is recorded. The perfect

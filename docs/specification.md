@@ -23,6 +23,12 @@ projects. A mutating `paperci propose` or `paperci hypothesize` run upgrades its
 output to `0.4`; the new version adds explicit claim dependencies and nested-design
 metadata. ProjectSpec `0.3` introduced the separate `hypotheses` collection.
 
+PaperCI `0.5.0a1` keeps ProjectSpec at `0.4`. Table-import manifests and workflow
+profiles use the existing namespaced `extensions` object under
+`org.paperci.import.v1` and `org.paperci.profile.v1`. Unknown extensions remain data,
+not scientific proof, unless a core rule or an installed rule pack explicitly
+defines their semantics.
+
 ```yaml
 spec_version: "0.4"
 project:

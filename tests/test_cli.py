@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -140,6 +141,150 @@ def test_init_refuses_to_overwrite(tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert "Refusing to overwrite" in result.output
     assert (tmp_path / "paperci.yaml").read_text(encoding="utf-8") == original
+
+
+def test_mechanistic_biology_profile_starts_empty_and_exposes_workflow(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        ["init", str(tmp_path), "--id", "mechanism-study", "--profile", "mechanistic-biology"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "evidence remains empty" in result.output
+    project = yaml.safe_load((tmp_path / "paperci.yaml").read_text(encoding="utf-8"))
+    assert project["evidence"] == []
+    profile = project["extensions"]["org.paperci.profile.v1"]
+    assert profile["name"] == "mechanistic-biology"
+    assert [item["role"] for item in profile["evidence_workflow"]] == [
+        "observation",
+        "intervention",
+        "target_engagement",
+        "rescue",
+        "orthogonal",
+        "nested_units",
+    ]
+    validation = runner.invoke(app, ["validate", str(tmp_path), "--format", "json"])
+    assert validation.exit_code == 0, validation.output
+
+
+def test_import_table_is_draft_hashed_mapped_and_idempotent(tmp_path: Path) -> None:
+    assert runner.invoke(app, ["init", str(tmp_path), "--id", "table-study"]).exit_code == 0
+    table = tmp_path / "results.csv"
+    table.write_text(
+        "finding,unit,evidence_type\n"
+        "Target increased,mouse,quantitative_result\n"
+        "Morphology changed,organoid,qualitative_observation\n",
+        encoding="utf-8",
+    )
+    project_file = tmp_path / "paperci.yaml"
+    before = project_file.read_text(encoding="utf-8")
+    dry_run = runner.invoke(
+        app,
+        [
+            "import-table",
+            str(tmp_path),
+            str(table),
+            "--statement-column",
+            "finding",
+            "--kind-column",
+            "evidence_type",
+            "--unit-column",
+            "unit",
+            "--dry-run",
+            "--format",
+            "json",
+        ],
+    )
+    assert dry_run.exit_code == 0, dry_run.output
+    assert json.loads(dry_run.output)["dry_run"] is True
+    assert project_file.read_text(encoding="utf-8") == before
+
+    result = runner.invoke(
+        app,
+        [
+            "import-table",
+            str(tmp_path),
+            str(table),
+            "--statement-column",
+            "finding",
+            "--kind-column",
+            "evidence_type",
+            "--unit-column",
+            "unit",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "No claims or mechanism inferences were generated" in result.output
+    project = yaml.safe_load(project_file.read_text(encoding="utf-8"))
+    assert project["claims"] == []
+    assert [item["status"] for item in project["evidence"]] == ["draft", "draft"]
+    assert [item["source"]["locator"] for item in project["evidence"]] == ["row=2", "row=3"]
+    expected_hash = hashlib.sha256(table.read_bytes()).hexdigest()
+    assert {item["source"]["sha256"] for item in project["evidence"]} == {expected_hash}
+    assert all(
+        item["extensions"]["org.paperci.import.v1"]["verification"] == "unverified"
+        for item in project["evidence"]
+    )
+    manifest = project["extensions"]["org.paperci.import.v1"]["runs"][0]
+    assert manifest["columns"] == {
+        "statement": "finding",
+        "kind": "evidence_type",
+        "unit_of_analysis": "unit",
+    }
+    assert manifest["imported_ids"] == ["E001", "E002"]
+    validation = runner.invoke(app, ["validate", str(tmp_path), "--format", "json"])
+    assert validation.exit_code == 0, validation.output
+
+    duplicate = runner.invoke(
+        app,
+        [
+            "import-table",
+            str(tmp_path),
+            str(table),
+            "--statement-column",
+            "finding",
+            "--kind-column",
+            "evidence_type",
+            "--unit-column",
+            "unit",
+        ],
+    )
+    assert duplicate.exit_code == 2
+    assert "already imported" in duplicate.output
+
+
+def test_import_table_rejects_missing_statement_without_partial_write(tmp_path: Path) -> None:
+    assert runner.invoke(app, ["init", str(tmp_path), "--id", "invalid-table"]).exit_code == 0
+    table = tmp_path / "invalid.tsv"
+    table.write_text("finding\tunit\n\tmouse\n", encoding="utf-8")
+    project_file = tmp_path / "paperci.yaml"
+    before = project_file.read_text(encoding="utf-8")
+    result = runner.invoke(
+        app,
+        [
+            "import-table",
+            str(tmp_path),
+            str(table),
+            "--statement-column",
+            "finding",
+            "--unit-column",
+            "unit",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "is empty at row 2" in result.output
+    assert project_file.read_text(encoding="utf-8") == before
+
+
+def test_explain_mechanism_rule_in_text_and_json() -> None:
+    text_result = runner.invoke(app, ["explain", "pci-mech-001"])
+    assert text_result.exit_code == 0, text_result.output
+    assert "passing the core gate does not prove the complete mechanism" in text_result.output
+    assert "Counterexample" in text_result.output
+    json_result = runner.invoke(app, ["explain", "PCI-MECH-001", "--format", "json"])
+    assert json_result.exit_code == 0, json_result.output
+    payload = json.loads(json_result.output)
+    assert payload["rule_id"] == "PCI-MECH-001"
+    assert payload["severity"] == "error"
 
 
 def test_demo_creates_complete_offline_project_and_refuses_overwrite(tmp_path: Path) -> None:

@@ -26,6 +26,7 @@ from paperci.providers import DeterministicStoryProvider, ProviderResult
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "examples" / "minimal-project.yaml"
+FIXTURES = ROOT / "tests" / "fixtures"
 
 
 def test_public_schema_and_example_conform() -> None:
@@ -71,6 +72,24 @@ def test_citation_metadata_is_version_neutral_and_points_to_repository() -> None
     assert citation["authors"] == [{"family-names": "Zhou", "given-names": "Xiaofeng"}]
     manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
     assert "include CITATION.cff" in manifest
+
+
+def test_v05_synthetic_cases_make_core_boundaries_explicit() -> None:
+    nested = load_project(FIXTURES / "nested-experiment.yaml")
+    nested_findings = validate_project(nested, scientific=True)
+    assert not any(finding.rule_id == "PCI-STAT-003" for finding in nested_findings)
+    assert not any(finding.severity == Severity.ERROR for finding in nested_findings)
+
+    contradictory = load_project(FIXTURES / "contradictory-multiomics.yaml")
+    contradictory_findings = validate_project(contradictory, scientific=True)
+    assert any(finding.rule_id == "PCI-REL-001" for finding in contradictory_findings)
+
+    intervention = load_project(FIXTURES / "intervention-without-rescue.yaml")
+    intervention_findings = validate_project(intervention, scientific=True)
+    assert not any(finding.rule_id == "PCI-MECH-001" for finding in intervention_findings)
+    assert intervention.data["evidence"][0]["extensions"]["org.paperci.core.v1"] == {
+        "evidence_roles": ["perturbation"]
+    }
 
 
 def test_non_human_actor_cannot_promote() -> None:

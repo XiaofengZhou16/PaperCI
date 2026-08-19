@@ -4,6 +4,22 @@ All notable changes to PaperCI will be documented here. The project follows
 Semantic Versioning for the Python package; the public data specification has its
 own version declared by `spec_version`.
 
+## 0.5.0a1 — 2026-08-20
+
+Evidence-ingestion and mechanistic-workflow pre-release candidate:
+
+- `import-table` converts explicitly mapped CSV/TSV rows into draft, unverified
+  evidence while recording the source hash, row locator, column mapping, and import
+  manifest; it never generates claims or mechanisms;
+- `init --profile mechanistic-biology` creates an empty-evidence project with prompts
+  for observation, intervention, target engagement, rescue, orthogonal evidence, and
+  nested experimental units;
+- `explain PCI-MECH-001` exposes the rule trigger, rationale, acceptable evidence,
+  limits, examples, counterexample, and remediation in text or JSON;
+- three synthetic fixtures lock the nested-design, contradictory multi-omics, and
+  intervention-without-rescue boundaries;
+- ProjectSpec remains at `0.4`; the new workflows use namespaced extension records.
+
 ## 0.4.0a2 — 2026-08-20
 
 Maintenance pre-release candidate:
