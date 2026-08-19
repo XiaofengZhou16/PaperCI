@@ -24,8 +24,9 @@ claim rules, provenance, evaluation cases, and human review workflow.
 
 ## Try it in two minutes
 
-PaperCI is pre-alpha. Install the current verified pre-release artifact from GitHub,
-then create a complete synthetic project without an API key or network call. PyPI
+PaperCI is pre-alpha. The source tree is preparing `v0.4.0a2`; install the latest
+verified GitHub artifact (`v0.4.0a1`) to try the current released behavior, then
+create a complete synthetic project without an API key or network call. PyPI
 publication is currently blocked by the repository's protected deployment rules;
 the protection gate has not been bypassed.
 
@@ -174,7 +175,7 @@ code-review system. CI may use `--fail-on error`; exploratory work may use
 
 ## Project status
 
-**Pre-alpha / v0.4.0a1.** The offline CLI separates evidence-bound claims from
+**Pre-alpha / v0.4.0a2 candidate.** The offline CLI separates evidence-bound claims from
 frontier hypotheses, validates explicit reasoning dependencies, and includes the
 first benchmark-derived semantic and nested-unit rules. Hypothesis novelty remains
 `unchecked` unless a dated, traceable literature assessment is recorded. The perfect
@@ -196,3 +197,10 @@ Security or privacy concerns should follow [SECURITY.md](SECURITY.md), not a pub
 issue containing unpublished data.
 
 Repository: [github.com/XiaofengZhou16/PaperCI](https://github.com/XiaofengZhou16/PaperCI)
+
+## Citation
+
+If PaperCI contributes to published work, cite the exact release or commit used so
+the scientific rules and ProjectSpec behavior remain reproducible. GitHub can export
+the repository citation from [`CITATION.cff`](CITATION.cff); release-specific citation
+metadata will be attached to public releases when archival deposition is available.

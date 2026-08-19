@@ -62,6 +62,17 @@ def test_package_version_has_single_release_value() -> None:
     assert metadata["project"]["version"] == __version__
 
 
+def test_citation_metadata_is_version_neutral_and_points_to_repository() -> None:
+    citation = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
+    assert citation["cff-version"] == "1.2.0"
+    assert citation["type"] == "software"
+    assert citation["repository-code"] == "https://github.com/XiaofengZhou16/PaperCI"
+    assert "version" not in citation
+    assert citation["authors"] == [{"family-names": "Zhou", "given-names": "Xiaofeng"}]
+    manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
+    assert "include CITATION.cff" in manifest
+
+
 def test_non_human_actor_cannot_promote() -> None:
     schema = load_schema()
     project = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))

@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: >-
+  If you use PaperCI, please cite the exact release or commit and the software
+  repository.
+title: PaperCI
+type: software
+authors:
+  - family-names: Zhou
+    given-names: Xiaofeng
+repository-code: https://github.com/XiaofengZhou16/PaperCI
+url: https://github.com/XiaofengZhou16/PaperCI
+license: Apache-2.0
