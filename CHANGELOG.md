@@ -4,6 +4,15 @@ All notable changes to PaperCI will be documented here. The project follows
 Semantic Versioning for the Python package; the public data specification has its
 own version declared by `spec_version`.
 
+## 0.4.0a2 — 2026-08-20
+
+Maintenance pre-release candidate:
+
+- add a machine-readable `CITATION.cff` and version-neutral citation guidance;
+- distinguish the source-tree candidate from the latest verified GitHub release in
+  installation and status documentation;
+- retain ProjectSpec `0.4` and all scientific-rule semantics unchanged.
+
 ## 0.4.0a1 — 2026-08-13
 
 Nature benchmark-driven reasoning upgrade:
