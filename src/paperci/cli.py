@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import platform
 import re
 import sys
@@ -25,6 +26,7 @@ from paperci.hypothesis_comparison import (
     hypothesis_comparison_json,
     hypothesis_comparison_text,
 )
+from paperci.profiles import apply_profile
 from paperci.project import (
     ProjectDocument,
     empty_project,
@@ -43,6 +45,8 @@ from paperci.render import (
     markdown_report,
     write_or_return,
 )
+from paperci.rule_explanations import explain_rule, explanation_json, explanation_text
+from paperci.table_import import EVIDENCE_KINDS, TableImportError, import_table
 
 app = typer.Typer(
     name="paperci",
@@ -79,6 +83,11 @@ def init_command(
     project_id: str | None = typer.Option(None, "--id", help="Stable project identifier."),
     title: str | None = typer.Option(None, "--title", help="Human-readable project title."),
     mode: str = typer.Option("sketch", help="Starting mode: sketch, verified, or connected."),
+    profile: str = typer.Option(
+        "generic",
+        "--profile",
+        help="Project profile: generic or mechanistic-biology.",
+    ),
 ) -> None:
     """Create a new local PaperCI project without contacting a network."""
     if mode not in {"sketch", "verified", "connected"}:
@@ -93,12 +102,92 @@ def init_command(
     inferred = _slug(destination.resolve().name or "paperci-project")
     project_id = project_id or inferred
     title = title or project_id.replace("-", " ").title()
-    document = ProjectDocument(path=path.resolve(), data=empty_project(project_id, title, mode))
+    data = empty_project(project_id, title, mode)
+    try:
+        apply_profile(data, profile)
+    except ValueError as exc:
+        _fail(str(exc))
+    document = ProjectDocument(path=path.resolve(), data=data)
     save_project(document)
     typer.echo(f"Created {document.path}")
+    if profile == "mechanistic-biology":
+        typer.echo(
+            "Profile: mechanistic-biology; evidence remains empty until you record real observations."
+        )
+        typer.echo("Next: paperci import-table or paperci add; then paperci explain PCI-MECH-001")
+        return
     typer.echo(
         "Next: paperci add && paperci claim --support E001 && paperci propose && paperci hypothesize"
     )
+
+
+@app.command("import-table")
+def import_table_command(
+    project: Path = typer.Argument(Path("."), help="Project file or directory."),
+    table: Path = typer.Argument(..., help="CSV or TSV table to import."),
+    statement_column: str = typer.Option(
+        ..., "--statement-column", help="Column containing bounded observed statements."
+    ),
+    locator_column: str | None = typer.Option(
+        None, "--locator-column", help="Optional source-locator column; defaults to row=N."
+    ),
+    kind: str = typer.Option(
+        "quantitative_result", "--kind", help="Default evidence kind for every imported row."
+    ),
+    kind_column: str | None = typer.Option(
+        None, "--kind-column", help="Optional column that explicitly maps evidence kinds."
+    ),
+    unit_column: str | None = typer.Option(
+        None, "--unit-column", help="Optional unit-of-analysis column."
+    ),
+    delimiter: str = typer.Option(
+        "auto", "--delimiter", help="Table dialect: auto, csv, or tsv."
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without changing the project."),
+    output_format: str = typer.Option(
+        "text", "--format", help="Output format: text or json."
+    ),
+) -> None:
+    """Import mapped table rows as draft, unverified evidence; never infer claims."""
+    if output_format not in {"text", "json"}:
+        _fail("--format must be text or json.")
+    if kind not in EVIDENCE_KINDS:
+        _fail(f"Unknown evidence kind {kind!r}. Choose one of: {', '.join(sorted(EVIDENCE_KINDS))}")
+    document = _load_or_fail(project)
+    try:
+        outcome = import_table(
+            document,
+            table,
+            statement_column=statement_column,
+            locator_column=locator_column,
+            kind=kind,
+            kind_column=kind_column,
+            unit_column=unit_column,
+            delimiter=delimiter,
+        )
+    except TableImportError as exc:
+        _fail(str(exc))
+    if not dry_run:
+        save_project(outcome.document)
+    if output_format == "json":
+        typer.echo(
+            json.dumps(
+                {
+                    "dry_run": dry_run,
+                    "manifest": outcome.manifest,
+                    "evidence": list(outcome.evidence),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+    elif output_format == "text":
+        typer.echo(
+            f"{'Would import' if dry_run else 'Imported'} {len(outcome.evidence)} draft, "
+            f"unverified evidence record(s) as {outcome.manifest['id']}."
+        )
+        typer.echo(f"Source SHA-256: {outcome.manifest['sha256']}")
+        typer.echo("No claims or mechanism inferences were generated.")
 
 
 @app.command("demo")
@@ -536,6 +625,26 @@ def validate_command(
     _emit_findings(document, findings, output_format)
     if any(finding.severity == Severity.ERROR for finding in findings):
         raise typer.Exit(code=1)
+
+
+@app.command("explain")
+def explain_command(
+    rule_id: str = typer.Argument(..., help="Rule ID, for example PCI-MECH-001."),
+    output_format: str = typer.Option(
+        "text", "--format", help="Output format: text or json."
+    ),
+) -> None:
+    """Explain a scientific rule's trigger, rationale, limits, and remediation."""
+    try:
+        explanation = explain_rule(rule_id)
+    except ValueError as exc:
+        _fail(str(exc))
+    if output_format == "text":
+        typer.echo(explanation_text(explanation))
+    elif output_format == "json":
+        typer.echo(explanation_json(explanation))
+    else:
+        _fail("--format must be text or json.")
 
 
 @app.command("lint")

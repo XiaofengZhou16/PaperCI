@@ -6,4 +6,4 @@ include SECURITY.md
 recursive-include docs *.md
 recursive-include examples *.csv *.tsv *.yaml
 recursive-include spec *.json
-recursive-include tests *.py
+recursive-include tests *.py *.yaml

@@ -62,6 +62,31 @@ Exit criteria:
 - no network calls during the offline test suite;
 - actionable error messages for all fixture failures.
 
+## Milestone 1.5 — evidence ingestion and rule transparency
+
+**Goal:** reduce first-run transcription work without converting structured input
+into unsupported scientific certainty.
+
+**Status:** initial offline candidate implemented in `v0.5.0a1`.
+
+Delivered candidate:
+
+- explicit CSV/TSV column mapping into draft, unverified evidence;
+- source hashes, row locators, import manifests, dry runs, and duplicate-import guards;
+- an empty-evidence mechanistic-biology profile with intervention, rescue,
+  orthogonal-evidence, and nested-unit prompts;
+- a text/JSON explanation for `PCI-MECH-001` that distinguishes the minimum gate
+  from complete mechanistic proof;
+- synthetic nested-design, contradictory multi-omics, and intervention-without-rescue
+  fixtures.
+
+Remaining deliverables:
+
+- user testing with heterogeneous tables and non-biomedical projects;
+- additional rule explanations with expert ownership and review dates;
+- optional, explicit mapping for effects, uncertainty, groups, and scope;
+- an import preview that highlights ambiguous or lossy mappings before commit.
+
 ## Milestone 2 — competing story generation
 
 **Goal:** use models where they add value while retaining deterministic boundaries.

@@ -1,0 +1,51 @@
+spec_version: "0.4"
+project:
+  id: intervention-without-rescue
+  title: Synthetic intervention without rescue
+  mode: sketch
+evidence:
+  - id: E001
+    kind: quantitative_result
+    statement: Perturbing the candidate changed the bounded outcome in the tested system.
+    status: draft
+    source:
+      uri: notes://synthetic-intervention
+      locator: figure-1
+    design:
+      family: experiment
+      unit_of_analysis: biological_sample
+      groups:
+        - id: control
+          n: 5
+        - id: perturbation
+          n: 5
+    result:
+      outcome: bounded synthetic outcome
+      contrast: perturbation minus control
+      direction: decrease
+      effect:
+        value: -1.0
+        unit: standardized_difference
+      uncertainty:
+        kind: confidence_interval
+        level: 0.95
+        lower: -1.8
+        upper: -0.2
+    extensions:
+      org.paperci.core.v1:
+        evidence_roles: [perturbation]
+claims:
+  - id: C001
+    text: The candidate contributes to the bounded outcome in the tested system.
+    type: mechanism
+    strength: supports
+    status: candidate
+    supports: [E001]
+    challenges: []
+    assumptions: []
+    alternatives:
+      - The perturbation acts through an off-target route.
+stories: []
+hypotheses: []
+reviews: []
+runs: []

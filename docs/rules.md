@@ -8,6 +8,10 @@ Every current finding identifies the affected record, rule ID, remediation, and
 available evidence/path context. Explicit rule-version fields and override
 suppression remain future compatibility work.
 
+Use `paperci explain PCI-MECH-001` to inspect the initial detailed rule explanation
+in text, or add `--format json` for tools and interfaces. The explanation separates
+the minimum core trigger from stronger, context-dependent evidence expectations.
+
 Severity means:
 
 - `error`: the current project representation is invalid or the claim crosses a

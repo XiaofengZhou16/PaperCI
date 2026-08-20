@@ -1,0 +1,28 @@
+spec_version: "0.4"
+project:
+  id: contradictory-multiomics
+  title: Synthetic contradictory multi-omics case
+  mode: sketch
+evidence:
+  - id: E001
+    kind: analysis_output
+    statement: One assay supported the bounded molecular association.
+    status: draft
+    source:
+      uri: notes://synthetic-multiomics
+      locator: assay-a
+claims:
+  - id: C001
+    text: The assays support a bounded molecular association.
+    type: association
+    strength: suggests
+    status: disputed
+    supports: [E001]
+    challenges: [E001]
+    assumptions: []
+    alternatives:
+      - The shared record contains mixed results that should be split.
+stories: []
+hypotheses: []
+reviews: []
+runs: []
