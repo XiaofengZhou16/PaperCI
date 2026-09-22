@@ -4,6 +4,17 @@ All notable changes to PaperCI will be documented here. The project follows
 Semantic Versioning for the Python package; the public data specification has its
 own version declared by `spec_version`.
 
+## 0.5.0a2 — 2026-09-22
+
+Release-resilience pre-release candidate:
+
+- replace stale, version-pinned installation text with a PyPI pre-release command;
+- test that packaged README guidance cannot regress to an obsolete GitHub wheel or
+  a resolved publication-blocked message;
+- allow a failed release to be rebuilt from the same immutable tag through a guarded
+  manual workflow dispatch, while retaining tag/version checks and environment approval;
+- retain ProjectSpec `0.4` and all scientific-rule semantics unchanged.
+
 ## 0.5.0a1 — 2026-08-20
 
 Evidence-ingestion and mechanistic-workflow pre-release candidate:

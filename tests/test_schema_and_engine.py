@@ -63,6 +63,13 @@ def test_package_version_has_single_release_value() -> None:
     assert metadata["project"]["version"] == __version__
 
 
+def test_readme_uses_version_neutral_pypi_installation() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "python -m pip install --pre paperci" in readme
+    assert "/releases/download/" not in readme
+    assert "publication is currently blocked" not in readme
+
+
 def test_citation_metadata_is_version_neutral_and_points_to_repository() -> None:
     citation = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
     assert citation["cff-version"] == "1.2.0"

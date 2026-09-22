@@ -3,6 +3,12 @@ name: Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild and publish
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -12,7 +18,8 @@ jobs:
     name: Build and verify release distributions
     runs-on: ubuntu-latest
     env:
-      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      RELEASE_REF: ${{ github.ref }}
     steps:
       - name: Check out the release tag
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -38,6 +45,7 @@ jobs:
           package_version = runpy.run_path("src/paperci/_version.py")["__version__"]
           expected_tag = f"v{project_version}"
           release_tag = os.environ["RELEASE_TAG"]
+          release_ref = os.environ["RELEASE_REF"]
 
           if project_version != package_version:
               raise SystemExit(
@@ -45,6 +53,11 @@ jobs:
               )
           if release_tag != expected_tag:
               raise SystemExit(f"Tag mismatch: release={release_tag}, expected={expected_tag}")
+          if release_ref != f"refs/tags/{release_tag}":
+              raise SystemExit(
+                  "Release runs must execute from the immutable release tag: "
+                  f"ref={release_ref}, expected=refs/tags/{release_tag}"
+              )
           PY
       - name: Test
         run: pytest

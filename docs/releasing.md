@@ -19,7 +19,8 @@ or store a long-lived PyPI token in the repository.
 ## Release checklist
 
 1. Update `pyproject.toml`, `src/paperci/_version.py`, and `CHANGELOG.md` to the same
-   version.
+   version. Keep README installation guidance version-neutral so the package metadata
+   does not preserve a stale candidate or blocked-publication message.
 2. Run the full test, lint, build, metadata, wheel-install, and source-install checks
    on the release commit. The normal CI and release workflows perform these checks.
 3. Merge the reviewed release change only after CI passes.
@@ -30,6 +31,12 @@ or store a long-lived PyPI token in the repository.
 6. After publication, verify the PyPI project metadata, Trusted Publisher identity,
    attestations, and artifact hashes. Install the exact release in a new environment
    and run the synthetic demo again.
+
+If a run fails before PyPI accepts any file, fix the external configuration and
+manually dispatch the Release workflow from the exact existing tag (for example,
+`gh workflow run release.yml --ref v0.5.0a2 -f tag=v0.5.0a2`). The workflow rejects
+dispatches whose selected ref and tag input differ. Do not retry this way after a
+partial upload; inspect PyPI first and prepare a new pre-release if any file exists.
 
 PyPI files and versions cannot be overwritten. If a published artifact is wrong,
 yank it with a clear reason and prepare the next pre-release; do not reuse the
