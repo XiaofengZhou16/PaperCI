@@ -3,6 +3,7 @@
 **Continuous integration for evidence-backed scientific stories and hypotheses.**
 
 [![CI](https://github.com/XiaofengZhou16/PaperCI/actions/workflows/ci.yml/badge.svg)](https://github.com/XiaofengZhou16/PaperCI/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/paperci?include_prereleases&label=PyPI)](https://pypi.org/project/paperci/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
@@ -24,17 +25,14 @@ claim rules, provenance, evaluation cases, and human review workflow.
 
 ## Try it in two minutes
 
-PaperCI is pre-alpha. The source tree is preparing `v0.5.0a1`; install the latest
-verified GitHub artifact (`v0.4.0a1`) to try the current released behavior, then
-create a complete synthetic project without an API key or network call. PyPI
-publication is currently blocked by the repository's protected deployment rules;
-the protection gate has not been bypassed.
+PaperCI is pre-alpha and is distributed through PyPI pre-releases. Install the
+latest verified pre-release, then create a complete synthetic project without an
+API key or network call.
 
 ```bash
 $ python -m venv .venv
 $ source .venv/bin/activate
-$ python -m pip install \
-    https://github.com/XiaofengZhou16/PaperCI/releases/download/v0.4.0a1/paperci-0.4.0a1-py3-none-any.whl
+$ python -m pip install --pre paperci
 $ paperci demo
 $ cd paperci-demo
 $ paperci lint --fail-on never
@@ -181,9 +179,9 @@ code-review system. CI may use `--fail-on error`; exploratory work may use
 
 ## Project status
 
-**Pre-alpha / v0.5.0a1 candidate.** The offline CLI separates evidence-bound claims from
-frontier hypotheses, validates explicit reasoning dependencies, and includes the
-first benchmark-derived semantic and nested-unit rules. Hypothesis novelty remains
+**Pre-alpha.** The offline CLI separates evidence-bound claims from frontier
+hypotheses, validates explicit reasoning dependencies, and includes the first
+benchmark-derived semantic and nested-unit rules. Hypothesis novelty remains
 `unchecked` unless a dated, traceable literature assessment is recorded. The perfect
 score on the single constructed Nature fixture is a regression result, not a general
 performance estimate. No output should be used in a submission or experimental
